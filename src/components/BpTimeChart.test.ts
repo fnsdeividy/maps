@@ -8,23 +8,23 @@ import {
 
 describe("buildSleepBands", () => {
   it("marca sono que atravessa a meia-noite dentro do exame", () => {
-    const start = new Date(2026, 6, 27, 15, 0).getTime();
-    const end = new Date(2026, 6, 28, 14, 0).getTime();
+    const start = Date.UTC(2026, 6, 27, 15, 0);
+    const end = Date.UTC(2026, 6, 28, 14, 0);
     const bands = buildSleepBands(start, end, { start: "22:00", end: "07:00" });
 
     expect(bands).toHaveLength(1);
-    expect(bands[0].from).toBe(new Date(2026, 6, 27, 22, 0).getTime());
-    expect(bands[0].to).toBe(new Date(2026, 6, 28, 7, 0).getTime());
+    expect(bands[0].from).toBe(Date.UTC(2026, 6, 27, 22, 0));
+    expect(bands[0].to).toBe(Date.UTC(2026, 6, 28, 7, 0));
   });
 
   it("recorta o sono ao intervalo do exame", () => {
-    const start = new Date(2026, 6, 28, 1, 0).getTime();
-    const end = new Date(2026, 6, 28, 14, 0).getTime();
+    const start = Date.UTC(2026, 6, 28, 1, 0);
+    const end = Date.UTC(2026, 6, 28, 14, 0);
     const bands = buildSleepBands(start, end, { start: "22:00", end: "07:00" });
 
     expect(bands).toHaveLength(1);
     expect(bands[0].from).toBe(start);
-    expect(bands[0].to).toBe(new Date(2026, 6, 28, 7, 0).getTime());
+    expect(bands[0].to).toBe(Date.UTC(2026, 6, 28, 7, 0));
   });
 });
 

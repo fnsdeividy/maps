@@ -98,23 +98,24 @@ export function buildSleepBands(
   }
 
   const bands: Array<{ from: number; to: number }> = [];
+  // minTime/maxTime vêm de medições AWP (wall-clock nos componentes UTC).
   const firstDay = new Date(minTime);
-  firstDay.setHours(0, 0, 0, 0);
+  firstDay.setUTCHours(0, 0, 0, 0);
   let cursor = firstDay.getTime() - DAY_MS;
   const lastDay = new Date(maxTime);
-  lastDay.setHours(0, 0, 0, 0);
+  lastDay.setUTCHours(0, 0, 0, 0);
 
   while (cursor <= lastDay.getTime()) {
     const day = new Date(cursor);
     const start = new Date(day);
-    start.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
+    start.setUTCHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
 
     const end = new Date(day);
     if (startMin < endMin) {
-      end.setHours(Math.floor(endMin / 60), endMin % 60, 0, 0);
+      end.setUTCHours(Math.floor(endMin / 60), endMin % 60, 0, 0);
     } else {
       end.setTime(day.getTime() + DAY_MS);
-      end.setHours(Math.floor(endMin / 60), endMin % 60, 0, 0);
+      end.setUTCHours(Math.floor(endMin / 60), endMin % 60, 0, 0);
     }
 
     const from = Math.max(start.getTime(), minTime);
