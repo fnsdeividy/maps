@@ -136,7 +136,7 @@ function isFilled(text?: string | null): text is string {
 function withoutFlagChecklist(text: string): string {
   return text
     .replace(
-      /(?:Gestante|Uso de álcool|Tabagismo|Insônia|Uso de cafeína)\s*:\s*(?:não informado|não|sim)\.?/gi,
+      /(?:Gestante|Uso de bebidas alcoólicas|Tabagismo|Insônia|Uso de cafeína)\s*:\s*(?:não informado|não|sim)\.?/gi,
       "",
     )
     .replace(/[ \t]{2,}/g, " ")

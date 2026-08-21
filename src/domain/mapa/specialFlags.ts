@@ -20,7 +20,7 @@ export function triStateLabel(value: TriStateFlag): string {
 
 export const SPECIAL_FLAG_FIELDS = [
   { key: "pregnancyStatus", label: "Gestante", name: "pregnancyStatus" },
-  { key: "alcoholUse", label: "Uso de álcool", name: "alcoholUse" },
+  { key: "alcoholUse", label: "Uso de bebidas alcoólicas", name: "alcoholUse" },
   { key: "smoking", label: "Tabagismo", name: "smoking" },
   { key: "insomnia", label: "Insônia", name: "insomnia" },
   { key: "caffeineUse", label: "Uso de cafeína", name: "caffeineUse" },

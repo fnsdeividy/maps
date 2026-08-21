@@ -270,7 +270,7 @@ export const REPORT_PHRASES: Array<{
   {
     code: "SPECIAL_ALCOHOL",
     category: "SPECIAL_SITUATION",
-    text: "Relato de uso de álcool.",
+    text: "Relato de uso de bebidas alcoólicas.",
   },
   {
     code: "SPECIAL_SMOKING",

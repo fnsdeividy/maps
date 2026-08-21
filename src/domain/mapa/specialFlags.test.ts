@@ -33,7 +33,7 @@ describe("specialFlags", () => {
         caffeineUse: "NO",
       }),
     ).toBe(
-      "Gestante: sim. Uso de álcool: não. Tabagismo: não informado. Insônia: sim. Uso de cafeína: não",
+      "Gestante: sim. Uso de bebidas alcoólicas: não. Tabagismo: não informado. Insônia: sim. Uso de cafeína: não",
     );
   });
 });

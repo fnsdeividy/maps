@@ -56,7 +56,7 @@ describe("buildCandidates", () => {
     {
       code: "SPECIAL_ALCOHOL",
       category: "SPECIAL_SITUATION",
-      text: "Relato de uso de álcool.",
+      text: "Relato de uso de bebidas alcoólicas.",
       active: true,
     },
     {

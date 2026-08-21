@@ -594,7 +594,7 @@ export class MapaRuleEngine {
       },
       ALCOHOL: {
         code: "SPECIAL_ALCOHOL",
-        message: "Relato de uso de álcool.",
+        message: "Relato de uso de bebidas alcoólicas.",
       },
       SMOKING: {
         code: "SPECIAL_SMOKING",
