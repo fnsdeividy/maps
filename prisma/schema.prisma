@@ -16,6 +16,8 @@ model User {
   passwordHash String
   name         String
   role         String   @default("DOCTOR")
+  /** Registro de Qualificação de Especialista, exibido na assinatura do laudo. */
+  rqe          String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

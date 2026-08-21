@@ -106,10 +106,7 @@ export async function confirmAwpImportAction(sourceFileId: string, formData: For
   if (!patientId) {
     redirect(`/reports/import/${sourceFileId}?error=paciente-ausente`);
   }
-  if (
-    sourceFile?.report?.status === "APPROVED" ||
-    sourceFile?.report?.status === "PENDING_APPROVAL"
-  ) {
+  if (sourceFile?.report?.status === "APPROVED") {
     redirect(`/reports/${sourceFile.report.id}`);
   }
 
@@ -184,10 +181,7 @@ export async function setMeasurementDiscardedAction(
     },
   });
   if (!sourceFile) return;
-  if (
-    sourceFile.report?.status === "APPROVED" ||
-    sourceFile.report?.status === "PENDING_APPROVAL"
-  ) {
+  if (sourceFile.report?.status === "APPROVED") {
     return;
   }
 

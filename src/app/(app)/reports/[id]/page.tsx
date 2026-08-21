@@ -10,6 +10,7 @@ import {
   interpretationDisplayText,
 } from "@/domain/mapa/interpretation";
 import { SECTION_CATEGORY } from "@/services/ai/AiPhraseSelectionService";
+import { getSigningDoctor } from "@/lib/signingDoctor";
 import { buildReportPrintModel } from "@/services/reports/printModel";
 import {
   approveReportAction,
@@ -31,20 +32,29 @@ export default async function ReportReviewPage({
   const { id } = await params;
   const user = await requireUser();
   const approverView = isApprover(user.role);
-  const report = await prisma.mapaReport.findUnique({
-    where: { id },
-    include: {
-      patient: true,
-      sourceFile: { select: { id: true } },
-      logs: { orderBy: { createdAt: "desc" } },
-    },
-  });
+  const [report, sourceFile] = await Promise.all([
+    prisma.mapaReport.findUnique({
+      where: { id },
+      include: {
+        patient: true,
+        sourceFile: { select: { id: true } },
+        logs: { orderBy: { createdAt: "desc" } },
+      },
+    }),
+    prisma.mapaSourceFile.findFirst({
+      where: { reportId: id },
+      select: { id: true },
+    }),
+  ]);
   if (!report) notFound();
 
   const approved = report.status === "APPROVED";
   const pendingApproval = report.status === "PENDING_APPROVAL";
   const changesRequested = report.status === "CHANGES_REQUESTED";
   const topicFeedback = parseTopicFeedback(report.reviewNotesByTopic);
+  const importFileId = sourceFile?.id ?? report.sourceFile?.id ?? null;
+  const importHref =
+    !approved && importFileId ? `/reports/import/${importFileId}` : null;
 
   const topics = REPORT_TOPICS.map((topic) => ({
     ...topic,
@@ -54,7 +64,6 @@ export default async function ReportReviewPage({
 
   // Operador não altera laudo que está na mesa do aprovador nem laudo aprovado.
   const canEdit = !approved && !approverView && !pendingApproval;
-  const isDev = process.env.NODE_ENV !== "production";
   const save = updateReportSections.bind(null, report.id);
   const submit = submitReportAction.bind(null, report.id);
   const approve = approveReportAction.bind(null, report.id);
@@ -66,10 +75,9 @@ export default async function ReportReviewPage({
   const printModel = preLaudo
     ? await buildReportPrintModel(report.id, { showAllCharts: true })
     : null;
-  const doctorName = user.email
-    ? ((await prisma.user.findUnique({ where: { email: user.email } }))?.name ??
-      user.name)
-    : user.name;
+  const signingDoctor = await getSigningDoctor();
+  const doctorName = signingDoctor.name;
+  const doctorRqe = signingDoctor.rqe;
 
   // Frases pré-definidas por tópico, para o revisor sugerir uma alternativa.
   const phraseOptions: Record<string, Array<{ code: string; text: string }>> = {};
@@ -130,13 +138,13 @@ export default async function ReportReviewPage({
           <p className="mt-1 text-sm text-slate-500">
             {report.patient.name} · exame em {formatDate(report.examDate)}
           </p>
-          {canEdit && report.sourceFile ? (
+          {importHref ? (
             <p className="mt-2 text-sm">
               <Link
                 className="font-medium text-teal-800 underline"
-                href={`/reports/import/${report.sourceFile.id}`}
+                href={importHref}
               >
-                Voltar à conferência do exame
+                Voltar à importação do arquivo
               </Link>
               <span className="text-slate-500">
                 {" "}
@@ -145,15 +153,23 @@ export default async function ReportReviewPage({
             </p>
           ) : null}
         </div>
-        <div className="flex items-center gap-2">
-          {isDev && !approved ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {importHref ? (
+            <Link
+              className="rounded-md border border-teal-700 px-3 py-2 text-sm font-medium text-teal-800"
+              href={importHref}
+            >
+              Voltar à importação do arquivo
+            </Link>
+          ) : null}
+          {(canEdit || (approverView && !approved)) ? (
             <form action={regenerate}>
               <button
-                className="rounded-md border border-dashed border-fuchsia-400 px-3 py-2 text-sm text-fuchsia-700"
-                title="Somente em desenvolvimento: refaz a seleção de frases pela IA"
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800"
+                title="Refaz a seleção de frases pela IA sem alterar o status do laudo"
                 type="submit"
               >
-                Reprocessar pela IA (dev)
+                Reprocessar pela IA
               </button>
             </form>
           ) : null}
@@ -182,7 +198,9 @@ export default async function ReportReviewPage({
         <ApproverPreLaudo
           approve={approve}
           doctorName={doctorName}
+          doctorRqe={doctorRqe}
           feedbackByTopic={topicFeedback}
+          importHref={importHref}
           phraseOptions={phraseOptions}
           printModel={printModel}
           reject={reject}
@@ -193,11 +211,7 @@ export default async function ReportReviewPage({
           assistantDoctorName={report.assistantDoctorName}
           canEdit={canEdit}
           changesRequested={changesRequested}
-          conferenceHref={
-            canEdit && report.sourceFile
-              ? `/reports/import/${report.sourceFile.id}`
-              : null
-          }
+          conferenceHref={importHref}
           includeHistogramChart={report.includeHistogramChart}
           includePieChart={report.includePieChart}
           includeTrendChart={report.includeTrendChart}
@@ -237,19 +251,23 @@ type TopicView = {
 function ApproverPreLaudo({
   printModel,
   doctorName,
+  doctorRqe,
   feedbackByTopic,
   phraseOptions,
   approve,
   reject,
   save,
+  importHref,
 }: {
   printModel: Awaited<ReturnType<typeof buildReportPrintModel>>;
   doctorName?: string | null;
+  doctorRqe?: string | null;
   feedbackByTopic: Partial<Record<string, string>>;
   phraseOptions: Record<string, Array<{ code: string; text: string }>>;
   approve: (formData: FormData) => void;
   reject: (formData: FormData) => void;
   save: (formData: FormData) => void;
+  importHref: string | null;
 }) {
   if (!printModel) {
     return (
@@ -280,6 +298,7 @@ function ApproverPreLaudo({
           awpPatient={printModel.awpPatient}
           chartPoints={printModel.chartPoints}
           doctorName={doctorName}
+          doctorRqe={doctorRqe}
           examDate={report.examDate}
           guidelineNote={printModel.guidelineNote}
           includeHistogramChart={printModel.includeHistogramChart}
@@ -327,6 +346,14 @@ function ApproverPreLaudo({
       </form>
 
       <div className="mt-4 flex flex-wrap gap-3">
+        {importHref ? (
+          <Link
+            className="rounded-md border border-teal-700 px-5 py-2 font-medium text-teal-800"
+            href={importHref}
+          >
+            Voltar à importação do arquivo
+          </Link>
+        ) : null}
         <button
           className="rounded-md border border-slate-300 px-5 py-2 text-slate-800"
           form="approver-edit-form"
@@ -477,11 +504,17 @@ function OperatorForm({
               Salvar edição
             </button>
             {conferenceHref ? (
-              <Link className="text-sm text-teal-800 underline" href={conferenceHref}>
-                Voltar à conferência do exame
+              <Link className="text-sm font-medium text-teal-800 underline" href={conferenceHref}>
+                Voltar à importação do arquivo
               </Link>
             ) : null}
           </div>
+        ) : conferenceHref ? (
+          <p className="text-sm">
+            <Link className="font-medium text-teal-800 underline" href={conferenceHref}>
+              Voltar à importação do arquivo
+            </Link>
+          </p>
         ) : null}
       </form>
 

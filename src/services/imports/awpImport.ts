@@ -251,10 +251,7 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
     input.patientId,
     examDate,
   );
-  if (
-    existing?.status === "APPROVED" ||
-    existing?.status === "PENDING_APPROVAL"
-  ) {
+  if (existing?.status === "APPROVED") {
     return {
       reportId: existing.id,
       metrics,
@@ -288,7 +285,9 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
     createdById: input.createdById ?? null,
   };
 
-  const keepReview = existing?.status === "CHANGES_REQUESTED";
+  const keepReview =
+    existing?.status === "CHANGES_REQUESTED" ||
+    existing?.status === "PENDING_APPROVAL";
   const report = existing
     ? await prisma.mapaReport.update({
         where: { id: existing.id },

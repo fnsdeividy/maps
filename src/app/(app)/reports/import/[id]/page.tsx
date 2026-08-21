@@ -66,9 +66,7 @@ export default async function AwpImportPreviewPage({
   const { sourceFile, result, metrics, sleepWindow, sleepSource, canImport } = preview;
   const linkedReport = sourceFile.report;
   const alreadyImported = Boolean(linkedReport);
-  const reportLocked =
-    linkedReport?.status === "APPROVED" ||
-    linkedReport?.status === "PENDING_APPROVAL";
+  const reportLocked = linkedReport?.status === "APPROVED";
 
   const confirm = confirmAwpImportAction.bind(null, sourceFile.id);
   const discard = discardAwpImportAction.bind(null, sourceFile.id);
@@ -136,8 +134,7 @@ export default async function AwpImportPreviewPage({
       </p>
       {reportLocked ? (
         <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Este laudo já foi enviado ou aprovado. Os dados do exame não podem ser
-          alterados agora.
+          Este laudo já foi aprovado. Os dados do exame não podem ser alterados.
         </p>
       ) : null}
       {formError ? (

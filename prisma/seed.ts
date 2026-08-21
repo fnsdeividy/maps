@@ -12,13 +12,24 @@ async function main() {
   // Aprovador: edita, aprova e devolve laudos com pendências.
   await prisma.user.upsert({
     where: { email },
-    update: { passwordHash, name: "Dr. Marcos Heber Lima", role: "DOCTOR" },
+    update: {
+      passwordHash,
+      name: "Dr. Marcos Heber Lima",
+      role: "DOCTOR",
+      rqe: "37228",
+    },
     create: {
       email,
       passwordHash,
       name: "Dr. Marcos Heber Lima",
       role: "DOCTOR",
+      rqe: "37228",
     },
+  });
+
+  await prisma.user.updateMany({
+    where: { role: "DOCTOR" },
+    data: { rqe: "37228" },
   });
 
   // Operador: gera/importa laudos e envia para aprovação.

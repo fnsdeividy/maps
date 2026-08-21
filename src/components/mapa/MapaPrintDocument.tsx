@@ -289,6 +289,7 @@ export function MapaPrintDocument({
   officeDiastolic,
   officeHeartRate,
   doctorName,
+  doctorRqe,
   assistantDoctorName,
   thresholds,
   stats,
@@ -311,6 +312,7 @@ export function MapaPrintDocument({
   officeDiastolic?: number | null;
   officeHeartRate?: number | null;
   doctorName?: string | null;
+  doctorRqe?: string | null;
   assistantDoctorName?: string | null;
   thresholds: MapaThresholds;
   stats: MapaPrintStatistics | null;
@@ -880,6 +882,7 @@ export function MapaPrintDocument({
           <div className="mx-auto mt-10 mb-2 w-56 border-b border-black" />
           <p className="font-semibold">{dash(doctorName)}</p>
           <p>Cardiologista</p>
+          <p>RQE: {doctorRqe ?? "37228"}</p>
         </div>
 
         <p className="mt-6 text-center text-[10px] text-slate-600">

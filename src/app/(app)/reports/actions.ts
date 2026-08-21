@@ -260,15 +260,9 @@ export async function approveReportAction(reportId: string, formData?: FormData)
   revalidatePath("/dashboard");
 }
 
-/**
- * Botão de desenvolvimento: reprocessa o laudo pela IA sem mudar o status,
- * para conferir o resultado no mesmo layout final. Indisponível em produção.
- */
+/** Refaz a seleção de frases pela IA, mantendo o status atual do laudo. */
 export async function regenerateReportAction(reportId: string) {
-  await requireUser();
-  if (process.env.NODE_ENV === "production") {
-    redirect(`/reports/${reportId}?error=indisponivel`);
-  }
+  await requireEditPermission(reportId);
   await generateReportContent(reportId, { keepStatus: true });
   revalidatePath(`/reports/${reportId}`);
   revalidatePath(`/reports/${reportId}/print`);

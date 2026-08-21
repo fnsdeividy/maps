@@ -7,6 +7,7 @@ import { isApprover } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { markPrinted } from "@/services/reports/generateReport";
 import { buildReportPrintModel } from "@/services/reports/printModel";
+import { getSigningDoctor } from "@/lib/signingDoctor";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,9 @@ export default async function PrintReportPage({
   const doctor = session.user.email
     ? await prisma.user.findUnique({ where: { email: session.user.email } })
     : null;
-  const doctorName = doctor?.name ?? session.user.name;
+  const signingDoctor = await getSigningDoctor();
+  const doctorName = signingDoctor.name;
+  const doctorRqe = signingDoctor.rqe;
   const role = doctor?.role ?? (session.user as { role?: string }).role;
 
   const status = await prisma.mapaReport.findUnique({
@@ -59,6 +62,7 @@ export default async function PrintReportPage({
         awpPatient={model.awpPatient}
         chartPoints={model.chartPoints}
         doctorName={doctorName}
+        doctorRqe={doctorRqe}
         examDate={report.examDate}
         guidelineNote={model.guidelineNote}
         includeHistogramChart={model.includeHistogramChart}
