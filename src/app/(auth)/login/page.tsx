@@ -21,7 +21,6 @@ export default function LoginPage() {
           Email
           <input
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
-            defaultValue="medico@local"
             name="email"
             required
             type="email"
@@ -31,7 +30,6 @@ export default function LoginPage() {
           Senha
           <input
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
-            defaultValue="mapa123"
             name="password"
             required
             type="password"
