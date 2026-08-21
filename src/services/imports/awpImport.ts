@@ -18,6 +18,7 @@ import { assertAcceptableAwpUpload } from "./awpUploadGuard";
 import { getClinicSettings } from "@/services/settings/clinicSettings";
 import { resolvePatientFromAwpData } from "@/services/patients/resolvePatientFromForm";
 import { applyMeasurementDiscard, applyMeasurementDiscards } from "@/domain/mapa/import/awp/measurementDiscard";
+import type { TriStateFlag } from "@/domain/mapa/specialFlags";
 
 const parser = new ContecAbpm50AwpParser();
 
