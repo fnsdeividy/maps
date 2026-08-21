@@ -68,6 +68,13 @@ export default async function ReportReviewPage({
           >
             Imprimir laudo
           </Link>
+        ) : approverView ? (
+          <Link
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white"
+            href={`/reports/${report.id}/print`}
+          >
+            Ver laudo e gráficos
+          </Link>
         ) : null}
       </div>
 
@@ -194,6 +201,17 @@ export default async function ReportReviewPage({
       {approverView && !approved ? (
         <div className="mt-6 space-y-4 rounded-lg border border-slate-200 bg-white p-5">
           <h2 className="font-semibold">Aprovação</h2>
+          <p className="text-sm text-slate-600">
+            Antes de aprovar, revise o laudo completo — tendência, histograma e pizza
+            ficam em{" "}
+            <Link
+              className="font-medium text-teal-700 underline"
+              href={`/reports/${report.id}/print`}
+            >
+              Ver laudo e gráficos
+            </Link>
+            .
+          </p>
           <form action={approve}>
             <button className="rounded-md bg-teal-700 px-4 py-2 text-white" type="submit">
               Aprovar laudo

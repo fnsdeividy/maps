@@ -7,6 +7,7 @@ import {
   buildMapaPrintStatistics,
   type MapaPrintStatistics,
 } from "@/domain/mapa/services/MapaPrintStatistics";
+import { isApprover } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { deserializeParseResult } from "@/services/imports/awpParseResultCodec";
 import { markPrinted } from "@/services/reports/generateReport";
@@ -129,25 +130,42 @@ export default async function PrintReportPage({
 }) {
   const { id } = await params;
   const session = await auth();
+  if (!session?.user) redirect("/login");
   // Nome direto do banco: a sessão (JWT) pode ficar com o nome antigo até novo login.
-  const doctor = session?.user?.email
+  const doctor = session.user.email
     ? await prisma.user.findUnique({ where: { email: session.user.email } })
     : null;
-  const doctorName = doctor?.name ?? session?.user?.name;
+  const doctorName = doctor?.name ?? session.user.name;
+  const role = doctor?.role ?? (session.user as { role?: string }).role;
   const report = await prisma.mapaReport.findUnique({
     where: { id },
     include: { patient: true, sourceFile: true },
   });
   if (!report) notFound();
-  if (report.status !== "APPROVED") {
+
+  const approved = report.status === "APPROVED";
+  const approverPreview = !approved && isApprover(role);
+  // Operador só imprime laudo aprovado; aprovador pode pré-visualizar antes.
+  if (!approved && !approverPreview) {
     redirect(`/reports/${report.id}`);
   }
 
-  after(() => {
-    void markPrinted(report.id);
-  });
+  if (approved) {
+    after(() => {
+      void markPrinted(report.id);
+    });
+  }
 
   const { thresholds, guidelineFooter } = await getClinicSettings();
+
+  // Na aprovação, o médico vê todos os gráficos; na impressão final, respeita a seleção.
+  const includeTrendChart = approverPreview ? true : report.includeTrendChart;
+  const includeHistogramChart = approverPreview
+    ? true
+    : report.includeHistogramChart;
+  const includePieChart = approverPreview ? true : report.includePieChart;
+  const anyChart =
+    includeTrendChart || includeHistogramChart || includePieChart;
 
   let stats: MapaPrintStatistics;
   let awpPatient = null;
@@ -181,10 +199,6 @@ export default async function PrintReportPage({
           ? { start: parsed.sleepWindow.start, end: parsed.sleepWindow.end }
           : null;
     stats = buildMapaPrintStatistics(parsed.measurements, thresholds, sleepWindow);
-    const anyChart =
-      report.includeTrendChart ||
-      report.includeHistogramChart ||
-      report.includePieChart;
     chartPoints = anyChart
       ? parsed.measurements
           .filter((measurement) => measurement.valid)
@@ -212,7 +226,7 @@ export default async function PrintReportPage({
 
   return (
     <div className="min-h-screen bg-slate-200 print:bg-white">
-      <PrintToolbar />
+      <PrintToolbar preview={approverPreview} />
       <MapaPrintDocument
         awpPatient={awpPatient}
         assistantDoctorName={report.assistantDoctorName}
@@ -220,9 +234,9 @@ export default async function PrintReportPage({
         doctorName={doctorName}
         examDate={report.examDate}
         guidelineNote={guidelineFooter}
-        includeHistogramChart={report.includeHistogramChart}
-        includePieChart={report.includePieChart}
-        includeTrendChart={report.includeTrendChart}
+        includeHistogramChart={includeHistogramChart}
+        includePieChart={includePieChart}
+        includeTrendChart={includeTrendChart}
         measurementNotes={measurementNotes}
         narrative={{
           medications: report.generatedMedications,
