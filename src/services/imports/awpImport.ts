@@ -1,0 +1,295 @@
+import { prisma } from "@/lib/prisma";
+import { ContecAbpm50AwpParser } from "@/domain/mapa/import/awp/ContecAbpm50AwpParser";
+import { NoMeasurementsFoundError } from "@/domain/mapa/import/awp/errors";
+import type { MapaFileParseResult } from "@/domain/mapa/import/awp/types";
+import {
+  MapaMetricsCalculator,
+  type MapaMetrics,
+  type SleepWindowInput,
+} from "@/domain/mapa/services/MapaMetricsCalculator";
+import { formatDateTime } from "@/lib/dates";
+import { logReportEvent } from "@/services/audit/log";
+import {
+  deserializeParseResult,
+  serializeParseResult,
+} from "./awpParseResultCodec";
+import { assertAcceptableAwpUpload } from "./awpUploadGuard";
+import { getClinicSettings } from "@/services/settings/clinicSettings";
+import { resolvePatientFromAwpData } from "@/services/patients/resolvePatientFromForm";
+import type { TriStateFlag } from "@/domain/mapa/specialFlags";
+
+const parser = new ContecAbpm50AwpParser();
+
+export interface AnalyzeAwpInput {
+  fileName: string;
+  buffer: Buffer;
+}
+
+/**
+ * Lê o arquivo e guarda a análise. Nenhum laudo é criado nesta etapa: o médico
+ * precisa conferir o preview e confirmar a importação.
+ * O paciente é cadastrado/reutilizado a partir de [PATIENTDATA].
+ */
+export async function analyzeAwpFile(input: AnalyzeAwpInput) {
+  assertAcceptableAwpUpload({
+    fileName: input.fileName,
+    size: input.buffer.length,
+    buffer: input.buffer,
+  });
+
+  const result = await parser.parse(input.buffer, input.fileName);
+  const patientId = await resolvePatientFromAwpData(result.patientData);
+  const invalid = result.measurements.filter((measurement) => !measurement.valid).length;
+
+  // O log técnico não registra nome de paciente nem conteúdo do arquivo.
+  console.info("[awp-import] arquivo analisado", {
+    format: result.detectedFormat,
+    version: result.detectedVersion,
+    parserVersion: result.parserVersion,
+    confidence: result.confidence,
+    records: result.rawRecords.length,
+    hash: result.file.sha256.slice(0, 12),
+  });
+
+  const sourceFile = await prisma.mapaSourceFile.create({
+    data: {
+      patientId,
+      status: "ANALYZED",
+      manufacturer: result.manufacturer,
+      deviceModel: result.deviceModel,
+      originalFileName: result.file.originalName,
+      fileSize: result.file.size,
+      fileHash: result.file.sha256,
+      encoding: result.encoding,
+      detectedFormat: result.detectedFormat,
+      detectedVersion: result.detectedVersion ?? null,
+      parserVersion: result.parserVersion,
+      parseConfidence: result.confidence,
+      totalRecords: result.rawRecords.length,
+      validMeasurements: result.measurements.length - invalid,
+      invalidMeasurements: invalid,
+      metadataJson: JSON.stringify(result.metadata),
+      warningsJson: JSON.stringify(result.warnings),
+      payloadJson: serializeParseResult(result),
+      // O arquivo original é gravado byte a byte, sem qualquer alteração.
+      content: Uint8Array.from(input.buffer),
+      sleepStart: result.sleepWindow?.start ?? null,
+      sleepEnd: result.sleepWindow?.end ?? null,
+      sleepSource: result.sleepWindow?.source ?? null,
+    },
+  });
+
+  return { sourceFileId: sourceFile.id, result };
+}
+
+export interface AwpImportPreview {
+  sourceFile: NonNullable<Awaited<ReturnType<typeof loadSourceFile>>>["sourceFile"];
+  result: MapaFileParseResult;
+  metrics: MapaMetrics;
+  sleepWindow: SleepWindowInput | null;
+  sleepSource: "FILE" | "MANUAL" | "DEVICE_CONFIGURATION" | null;
+  canImport: boolean;
+}
+
+async function loadSourceFile(id: string) {
+  const sourceFile = await prisma.mapaSourceFile.findUnique({
+    where: { id },
+    include: { patient: true },
+  });
+  if (!sourceFile) return null;
+  return { sourceFile, result: deserializeParseResult(sourceFile.payloadJson) };
+}
+
+/**
+ * Monta o preview. A janela de sono informada manualmente tem prioridade sobre
+ * a do arquivo, mas nenhuma janela é inventada quando as duas faltam.
+ */
+export async function getAwpImportPreview(
+  id: string,
+  manualSleep?: { start?: string | null; end?: string | null },
+): Promise<AwpImportPreview | null> {
+  const loaded = await loadSourceFile(id);
+  if (!loaded) return null;
+
+  const { sourceFile, result } = loaded;
+  const manualStart = manualSleep?.start?.trim();
+  const manualEnd = manualSleep?.end?.trim();
+
+  const sleepWindow: SleepWindowInput | null =
+    manualStart && manualEnd
+      ? { start: manualStart, end: manualEnd }
+      : result.sleepWindow
+        ? { start: result.sleepWindow.start, end: result.sleepWindow.end }
+        : null;
+
+  const sleepSource = sleepWindow
+    ? manualStart && manualEnd
+      ? "MANUAL"
+      : (result.sleepWindow?.source ?? null)
+    : null;
+
+  const { thresholds } = await getClinicSettings();
+  const metrics = new MapaMetricsCalculator(thresholds).calculate(result.measurements, sleepWindow);
+
+  return {
+    sourceFile,
+    result,
+    metrics,
+    sleepWindow: metrics.sleepWindow,
+    sleepSource,
+    canImport: result.confidence !== "UNKNOWN" && metrics.validMeasurements > 0,
+  };
+}
+
+export interface ConfirmAwpImportInput {
+  sourceFileId: string;
+  patientId: string;
+  examDate: Date;
+  sleepStart?: string | null;
+  sleepEnd?: string | null;
+  currentMedications: string;
+  officeSystolicPressure: number | null;
+  officeDiastolicPressure: number | null;
+  officeHeartRate: number | null;
+  pregnancyStatus: TriStateFlag;
+  alcoholUse: TriStateFlag;
+  smoking: TriStateFlag;
+  insomnia: TriStateFlag;
+  caffeineUse: TriStateFlag;
+  pregnancyMonths: number | null;
+  /** Observações clínicas por índice de medição. */
+  observations?: Record<number, string>;
+  includeTrendChart?: boolean;
+  includeHistogramChart?: boolean;
+  includePieChart?: boolean;
+  assistantDoctorName?: string | null;
+  createdById?: string | null;
+}
+
+/** Texto factual sobre os extremos, sem classificar significado clínico. */
+function buildPeakNotes(metrics: MapaMetrics): string | null {
+  const parts: string[] = [];
+  if (metrics.peakSystolic) {
+    parts.push(
+      `Maior PAS registrada: ${metrics.peakSystolic.value} mmHg em ${formatDateTime(metrics.peakSystolic.at)}.`,
+    );
+  }
+  if (metrics.peakDiastolic) {
+    parts.push(
+      `Maior PAD registrada: ${metrics.peakDiastolic.value} mmHg em ${formatDateTime(metrics.peakDiastolic.at)}.`,
+    );
+  }
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
+/**
+ * Grava as métricas calculadas nos campos que o Rule Engine já consome. O
+ * laudo em si continua sendo produzido por `generateReportContent`, sem
+ * qualquer motor de regras paralelo.
+ */
+export async function confirmAwpImport(input: ConfirmAwpImportInput) {
+  const loaded = await loadSourceFile(input.sourceFileId);
+  if (!loaded) throw new NoMeasurementsFoundError();
+
+  const { sourceFile, result } = loaded;
+  if (result.confidence === "UNKNOWN") {
+    throw new NoMeasurementsFoundError(
+      "A estrutura deste arquivo não foi reconhecida com segurança. A importação foi bloqueada.",
+    );
+  }
+
+  const sleepWindow: SleepWindowInput | null =
+    input.sleepStart && input.sleepEnd
+      ? { start: input.sleepStart, end: input.sleepEnd }
+      : result.sleepWindow
+        ? { start: result.sleepWindow.start, end: result.sleepWindow.end }
+        : null;
+
+  const observations = input.observations ?? {};
+  const measurementsWithNotes = result.measurements.map((measurement) => {
+    const observation = observations[measurement.index];
+    if (!observation) return measurement;
+    return { ...measurement, observation };
+  });
+  const resultWithNotes = { ...result, measurements: measurementsWithNotes };
+
+  const { thresholds } = await getClinicSettings();
+  const metrics = new MapaMetricsCalculator(thresholds).calculate(
+    resultWithNotes.measurements,
+    sleepWindow,
+  );
+  if (metrics.validMeasurements === 0) throw new NoMeasurementsFoundError();
+
+  const report = await prisma.mapaReport.create({
+    data: {
+      patientId: input.patientId,
+      examDate: input.examDate,
+      source: "FILE",
+      status: "DRAFT",
+      currentMedications: input.currentMedications,
+      officeSystolicPressure: input.officeSystolicPressure,
+      officeDiastolicPressure: input.officeDiastolicPressure,
+      officeHeartRate: input.officeHeartRate,
+      pregnancy: input.pregnancyStatus === "YES",
+      pregnancyMonths:
+        input.pregnancyStatus === "YES" ? input.pregnancyMonths : null,
+      pregnancyStatus: input.pregnancyStatus,
+      alcoholUse: input.alcoholUse,
+      smoking: input.smoking,
+      insomnia: input.insomnia,
+      caffeineUse: input.caffeineUse,
+      totalMeasurements: metrics.totalMeasurements,
+      validMeasurements: metrics.validMeasurements,
+      validMeasurementsPercentage: metrics.validMeasurementsPercentage,
+      avg24hSystolic: metrics.avg24hSystolic,
+      avg24hDiastolic: metrics.avg24hDiastolic,
+      awakeSystolic: metrics.awake?.avgSystolic ?? null,
+      awakeDiastolic: metrics.awake?.avgDiastolic ?? null,
+      sleepSystolic: metrics.sleep?.avgSystolic ?? null,
+      sleepDiastolic: metrics.sleep?.avgDiastolic ?? null,
+      awakeSystolicLoad: metrics.awake?.systolicLoad ?? null,
+      awakeDiastolicLoad: metrics.awake?.diastolicLoad ?? null,
+      sleepSystolicLoad: metrics.sleep?.systolicLoad ?? null,
+      sleepDiastolicLoad: metrics.sleep?.diastolicLoad ?? null,
+      systolicNightDipping: metrics.systolicNightDipping,
+      diastolicNightDipping: metrics.diastolicNightDipping,
+      peakPressureNotes: buildPeakNotes(metrics),
+      specialSituations: "[]",
+      includeTrendChart: input.includeTrendChart ?? true,
+      includeHistogramChart: input.includeHistogramChart ?? true,
+      includePieChart: input.includePieChart ?? true,
+      assistantDoctorName: input.assistantDoctorName?.trim() || null,
+      createdById: input.createdById ?? null,
+    },
+  });
+
+  await prisma.mapaSourceFile.update({
+    where: { id: sourceFile.id },
+    data: {
+      reportId: report.id,
+      patientId: input.patientId,
+      status: "IMPORTED",
+      importedAt: new Date(),
+      sleepStart: sleepWindow?.start ?? null,
+      sleepEnd: sleepWindow?.end ?? null,
+      sleepSource: sleepWindow
+        ? input.sleepStart && input.sleepEnd
+          ? "MANUAL"
+          : (result.sleepWindow?.source ?? null)
+        : null,
+      payloadJson: serializeParseResult(resultWithNotes),
+    },
+  });
+
+  await logReportEvent({ reportId: report.id, event: "REPORT_CREATED" });
+  await logReportEvent({ reportId: report.id, event: "FILE_IMPORTED" });
+
+  return { reportId: report.id, metrics };
+}
+
+export async function discardAwpImport(sourceFileId: string) {
+  await prisma.mapaSourceFile.update({
+    where: { id: sourceFileId },
+    data: { status: "DISCARDED" },
+  });
+}

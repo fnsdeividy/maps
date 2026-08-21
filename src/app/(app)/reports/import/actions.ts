@@ -1,0 +1,143 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/authz";
+import { toUserMessage } from "@/domain/mapa/import/awp/errors";
+import { readRequiredSpecialFlags } from "@/domain/mapa/specialFlags";
+import { generateReportContent } from "@/services/reports/generateReport";
+import {
+  analyzeAwpFile,
+  confirmAwpImport,
+  discardAwpImport,
+} from "@/services/imports/awpImport";
+import { PatientResolutionError } from "@/services/patients/resolvePatientFromForm";
+import { prisma } from "@/lib/prisma";
+
+function num(formData: FormData, name: string): number | null {
+  const value = formData.get(name);
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function bool(formData: FormData, name: string): boolean {
+  const value = formData.get(name);
+  return value === "on" || value === "true" || value === "1";
+}
+
+function clock(formData: FormData, name: string): string | null {
+  const value = formData.get(name);
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return /^\d{1,2}:\d{2}$/.test(trimmed) ? trimmed : null;
+}
+
+/** Lê observation_<índice> do formulário de conferência. */
+function readObservations(formData: FormData): Record<number, string> {
+  const observations: Record<number, string> = {};
+  for (const [key, value] of formData.entries()) {
+    const match = /^observation_(\d+)$/.exec(key);
+    if (!match || typeof value !== "string") continue;
+    const text = value.trim();
+    if (!text) continue;
+    observations[Number(match[1])] = text.slice(0, 240);
+  }
+  return observations;
+}
+
+export type AwpAnalyzeState = { error?: string };
+
+/** Etapa 1: analisar o arquivo. Nenhum laudo é criado aqui. */
+export async function analyzeAwpFileAction(
+  _state: AwpAnalyzeState,
+  formData: FormData,
+): Promise<AwpAnalyzeState> {
+  await requireUser();
+
+  const file = formData.get("awpFile");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Selecione o arquivo .AWP do equipamento." };
+  }
+
+  let sourceFileId: string;
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const analysis = await analyzeAwpFile({
+      fileName: file.name,
+      buffer,
+    });
+    sourceFileId = analysis.sourceFileId;
+  } catch (error) {
+    if (error instanceof PatientResolutionError) {
+      return { error: error.userMessage };
+    }
+    return { error: toUserMessage(error) };
+  }
+
+  redirect(`/reports/import/${sourceFileId}`);
+}
+
+/** Etapa 2: com a conferência feita, importar os dados e gerar o laudo. */
+export async function confirmAwpImportAction(sourceFileId: string, formData: FormData) {
+  const user = await requireUser();
+
+  const sourceFile = await prisma.mapaSourceFile.findUnique({
+    where: { id: sourceFileId },
+    select: { patientId: true },
+  });
+  const patientId = sourceFile?.patientId;
+  if (!patientId) {
+    redirect(`/reports/import/${sourceFileId}?error=paciente-ausente`);
+  }
+
+  const examDateValue = String(formData.get("examDate") ?? "");
+  if (!examDateValue) {
+    redirect(`/reports/import/${sourceFileId}?error=dados-incompletos`);
+  }
+
+  const specialFlags = readRequiredSpecialFlags(formData);
+  if (!specialFlags) {
+    redirect(`/reports/import/${sourceFileId}?error=situacoes-especiais`);
+  }
+  if (specialFlags.pregnancyStatus === "YES" && num(formData, "pregnancyMonths") == null) {
+    redirect(`/reports/import/${sourceFileId}?error=gestacao-meses`);
+  }
+
+  const { reportId } = await confirmAwpImport({
+    sourceFileId,
+    patientId,
+    examDate: new Date(examDateValue),
+    sleepStart: clock(formData, "sleepStart"),
+    sleepEnd: clock(formData, "sleepEnd"),
+    currentMedications: String(formData.get("currentMedications") ?? ""),
+    officeSystolicPressure: num(formData, "officeSystolicPressure"),
+    officeDiastolicPressure: num(formData, "officeDiastolicPressure"),
+    officeHeartRate: num(formData, "officeHeartRate"),
+    pregnancyStatus: specialFlags.pregnancyStatus,
+    alcoholUse: specialFlags.alcoholUse,
+    smoking: specialFlags.smoking,
+    insomnia: specialFlags.insomnia,
+    caffeineUse: specialFlags.caffeineUse,
+    pregnancyMonths: num(formData, "pregnancyMonths"),
+    observations: readObservations(formData),
+    includeTrendChart: bool(formData, "includeTrendChart"),
+    includeHistogramChart: bool(formData, "includeHistogramChart"),
+    includePieChart: bool(formData, "includePieChart"),
+    assistantDoctorName:
+      String(formData.get("assistantDoctorName") ?? "").trim() || null,
+    createdById: user.id,
+  });
+
+  await generateReportContent(reportId);
+
+  revalidatePath("/reports");
+  revalidatePath("/dashboard");
+  redirect(`/reports/${reportId}`);
+}
+
+export async function discardAwpImportAction(sourceFileId: string) {
+  await requireUser();
+  await discardAwpImport(sourceFileId);
+  redirect("/reports/new");
+}

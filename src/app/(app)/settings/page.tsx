@@ -1,0 +1,67 @@
+import { getClinicSettings, countPendingSettings } from "@/services/settings/clinicSettings";
+import { SettingsForm } from "./SettingsForm";
+
+const pendingDescriptions = [
+  {
+    key: "officeThresholds",
+    label: "Limite de pressão de consultório para classificação office vs MAPA.",
+  },
+  {
+    key: "significantlyElevatedThresholds",
+    label: "Limite entre “elevado” e “significativamente elevado”.",
+  },
+  {
+    key: "pressureLoadThresholds",
+    label: "Limites de cargas pressóricas (normal vs elevada).",
+  },
+  {
+    key: "nightDippingThresholds",
+    label: "Valores de descenso noturno: normal / atenuado / acentuado / ausente.",
+  },
+  {
+    key: "technicalQualityThresholds",
+    label: "Percentual mínimo de medições válidas para qualidade técnica.",
+  },
+  {
+    key: "pressurePeakThresholds",
+    label: "Critérios objetivos para picos pressóricos automáticos.",
+  },
+] as const;
+
+export default async function SettingsPage() {
+  const settings = await getClinicSettings();
+  const pending = pendingDescriptions.filter(
+    (item) => settings.thresholds[item.key as keyof typeof settings.thresholds] == null,
+  );
+
+  return (
+    <div className="max-w-3xl">
+      <h1 className="text-2xl font-semibold">Configurações</h1>
+      <p className="mt-1 text-sm text-slate-500">
+        Parâmetros clínicos do roteiro de laudo MAPA. Alterações aplicam-se aos próximos laudos
+        gerados.
+      </p>
+
+      <SettingsForm
+        guidelineFooter={settings.guidelineFooter}
+        thresholds={settings.thresholds}
+      />
+
+      {pending.length > 0 ? (
+        <section className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-5">
+          <h2 className="font-semibold">Parâmetros ainda desativados</h2>
+          <p className="mt-1 text-sm text-amber-900">
+            {countPendingSettings(settings.thresholds)} parâmetro(s) opcional(is) ainda não
+            configurado(s). Ative e preencha a seção correspondente acima quando validado pela
+            clínica.
+          </p>
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm">
+            {pending.map((item) => (
+              <li key={item.key}>{item.label}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </div>
+  );
+}

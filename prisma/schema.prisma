@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// role: OPERATOR (gera e envia laudos) | DOCTOR (aprovador: edita, aprova e devolve).
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("DOCTOR")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  notifications  Notification[]
+  createdReports MapaReport[]   @relation("ReportCreatedBy")
+}
+
+/// Aviso in-app: laudo enviado para aprovação (aprovador) ou devolvido com pendências (operador).
+model Notification {
+  id       String  @id @default(cuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reportId String?
+
+  type    String
+  message String
+  readAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt])
+  @@index([createdAt])
+}
+
+model Patient {
+  id          String           @id @default(cuid())
+  name        String
+  birthDate   DateTime
+  gender      String
+  document    String?
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  reports     MapaReport[]
+  sourceFiles MapaSourceFile[]
+}
+
+model MapaReport {
+  id        String  @id @default(cuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  examDate DateTime
+  source   String   @default("MANUAL")
+  /// DRAFT | GENERATED | PENDING_APPROVAL | CHANGES_REQUESTED | APPROVED
+  status   String   @default("DRAFT")
+
+  createdById String?
+  createdBy   User?   @relation("ReportCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  /// Pendências apontadas pelo aprovador ao devolver o laudo.
+  reviewNotes String?
+  submittedAt DateTime?
+
+  currentMedications String @default("")
+
+  officeSystolicPressure  Float?
+  officeDiastolicPressure Float?
+  officeHeartRate         Float?
+
+  pregnancy       Boolean @default(false)
+  pregnancyMonths Int?
+  /** YES | NO | UNKNOWN — obrigatório no formulário clínico */
+  pregnancyStatus String @default("UNKNOWN")
+  alcoholUse      String @default("UNKNOWN")
+  smoking         String @default("UNKNOWN")
+  insomnia        String @default("UNKNOWN")
+  caffeineUse     String @default("UNKNOWN")
+
+  totalMeasurements            Int?
+  validMeasurements            Int?
+  validMeasurementsPercentage  Float?
+  technicalComments            String?
+
+  avg24hSystolic  Float?
+  avg24hDiastolic Float?
+
+  awakeSystolic  Float?
+  awakeDiastolic Float?
+
+  sleepSystolic  Float?
+  sleepDiastolic Float?
+
+  awakeSystolicLoad   Float?
+  awakeDiastolicLoad  Float?
+  sleepSystolicLoad   Float?
+  sleepDiastolicLoad  Float?
+
+  systolicNightDipping  Float?
+  diastolicNightDipping Float?
+
+  peakAwake                   Boolean @default(false)
+  peakSleep                   Boolean @default(false)
+  peakMorning                 Boolean @default(false)
+  peakWithHeartRateIncrease   Boolean @default(false)
+  peakPhysicalEmotionalStress Boolean @default(false)
+  peakPressureNotes           String?
+
+  specialSituations String @default("[]")
+
+  generatedMedications            String?
+  generatedTechnicalComments      String?
+  generatedResults                String?
+  generatedPressureLoad           String?
+  generatedPressurePeaks          String?
+  generatedNightDipping           String?
+  generatedSpecialSituations      String?
+  generatedGeneralConsiderations  String?
+  generatedConclusion             String?
+
+  usedAiFallback Boolean @default(false)
+  includeTrendChart     Boolean @default(true)
+  includeHistogramChart Boolean @default(true)
+  includePieChart       Boolean @default(true)
+  /** Nome do médico assistente exibido na assinatura do laudo. */
+  assistantDoctorName String?
+  approvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  aiUsages   AiUsage[]
+  logs       ReportGenerationLog[]
+  sourceFile MapaSourceFile?
+
+  @@index([patientId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Arquivo original exportado pelo equipamento, preservado byte a byte para rastreabilidade.
+/// O payload guarda o resultado do parser na versão em que foi executado, permitindo
+/// reprocessar o mesmo arquivo quando o parser evoluir.
+model MapaSourceFile {
+  id        String   @id @default(cuid())
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  reportId String?     @unique
+  report   MapaReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  status String @default("ANALYZED")
+
+  manufacturer String
+  deviceModel  String
+
+  originalFileName String
+  fileSize         Int
+  fileHash         String
+  encoding         String
+
+  detectedFormat  String
+  detectedVersion String?
+  parserVersion   String
+  parseConfidence String
+
+  totalRecords        Int
+  validMeasurements   Int
+  invalidMeasurements Int
+
+  metadataJson String @default("{}")
+  warningsJson String @default("[]")
+  payloadJson  String
+
+  content Bytes
+
+  sleepStart  String?
+  sleepEnd    String?
+  sleepSource String?
+
+  importedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([patientId])
+  @@index([fileHash])
+  @@index([createdAt])
+}
+
+model ReportPhrase {
+  id       String  @id @default(cuid())
+  code     String  @unique
+  category String
+  text     String
+  active   Boolean @default(true)
+}
+
+model AiUsage {
+  id     String     @id @default(cuid())
+  reportId String
+  report   MapaReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  provider String
+  model    String
+
+  inputTokens  Int
+  outputTokens Int
+  totalTokens  Int
+
+  estimatedInputCost  Float
+  estimatedOutputCost Float
+  estimatedTotalCost  Float
+
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
+  @@index([createdAt])
+}
+
+model ReportGenerationLog {
+  id     String     @id @default(cuid())
+  reportId String
+  report   MapaReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  event         String
+  model         String?
+  promptVersion String?
+
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
+  @@index([createdAt])
+}
+
+/// Parâmetros clínicos editáveis pela clínica (singleton).
+model ClinicSettings {
+  id              String   @id @default("default")
+  thresholdsJson  String
+  guidelineFooter String
+  updatedAt       DateTime @updatedAt
+}

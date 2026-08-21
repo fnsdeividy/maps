@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@media print {
+  nav,
+  aside,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-page {
+    break-after: page;
+    page-break-after: always;
+    box-shadow: none !important;
+    margin: 0 !important;
+    max-width: none !important;
+    padding: 8mm !important;
+  }
+
+  .print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .print-keep {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-section-title {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .mapa-print table,
+  .mapa-print tr,
+  .mapa-print thead,
+  .mapa-print tbody {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .mapa-print img,
+  .mapa-print svg {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    max-width: 100%;
+  }
+
+  .mapa-print p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  @page {
+    size: A4;
+    margin: 8mm;
+  }
+}
+
+.mapa-print .print-page {
+  box-shadow: 0 1px 8px rgb(15 23 42 / 12%);
+}
