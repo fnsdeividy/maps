@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { loginAction } from "./actions";
 
 type LoginState = { error: string } | null;
 
 export default function LoginPage() {
   const [state, action] = useActionState(loginAction, null as LoginState);
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100">
@@ -28,12 +29,21 @@ export default function LoginPage() {
         </label>
         <label className="mt-4 block text-sm">
           Senha
-          <input
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
-            name="password"
-            required
-            type="password"
-          />
+          <div className="relative mt-1">
+            <input
+              className="w-full rounded-md border border-slate-300 px-3 py-2 pr-20"
+              name="password"
+              required
+              type={showPassword ? "text" : "password"}
+            />
+            <button
+              className="absolute inset-y-0 right-0 px-3 text-xs font-medium text-teal-700 hover:text-teal-900"
+              onClick={() => setShowPassword((value) => !value)}
+              type="button"
+            >
+              {showPassword ? "Ocultar" : "Mostrar"}
+            </button>
+          </div>
         </label>
         {state?.error ? (
           <p className="mt-3 text-sm text-red-600">{state.error}</p>
