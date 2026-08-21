@@ -1,4 +1,5 @@
 import { getClinicSettings, countPendingSettings } from "@/services/settings/clinicSettings";
+import { ChangePasswordForm } from "./ChangePasswordForm";
 import { SettingsForm } from "./SettingsForm";
 
 const pendingDescriptions = [
@@ -35,12 +36,22 @@ export default async function SettingsPage() {
   );
 
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-2xl font-semibold">Configurações</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Parâmetros clínicos do roteiro de laudo MAPA. Alterações aplicam-se aos próximos laudos
-        gerados.
-      </p>
+    <div className="max-w-3xl space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold">Configurações</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Conta e parâmetros clínicos do roteiro de laudo MAPA.
+        </p>
+      </div>
+
+      <ChangePasswordForm />
+
+      <div>
+        <h2 className="text-lg font-semibold">Parâmetros clínicos</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Alterações aplicam-se aos próximos laudos gerados.
+        </p>
+      </div>
 
       <SettingsForm
         guidelineFooter={settings.guidelineFooter}
@@ -48,7 +59,7 @@ export default async function SettingsPage() {
       />
 
       {pending.length > 0 ? (
-        <section className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-5">
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-5">
           <h2 className="font-semibold">Parâmetros ainda desativados</h2>
           <p className="mt-1 text-sm text-amber-900">
             {countPendingSettings(settings.thresholds)} parâmetro(s) opcional(is) ainda não
