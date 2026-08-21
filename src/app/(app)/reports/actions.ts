@@ -12,6 +12,7 @@ import {
   generateReportContent,
   saveEditedSections,
 } from "@/services/reports/generateReport";
+import { setImportedMeasurementDiscarded } from "@/services/imports/awpImport";
 import { logReportEvent } from "@/services/audit/log";
 import {
   notifyApprovers,
@@ -165,31 +166,36 @@ async function requireEditPermission(reportId: string) {
   return user;
 }
 
+function sectionsFromFormData(formData: FormData) {
+  const payload: Record<string, string> = {};
+  for (const topic of REPORT_TOPICS) {
+    const value = formData.get(topic.key);
+    if (typeof value !== "string") continue;
+    payload[topic.key] = value;
+  }
+  return reportSectionsSchema.partial().parse(payload);
+}
+
 export async function updateReportSections(reportId: string, formData: FormData) {
   await requireEditPermission(reportId);
-  const parsed = reportSectionsSchema.parse({
-    medications: String(formData.get("medications") ?? ""),
-    technicalComments: String(formData.get("technicalComments") ?? ""),
-    averagePressure: String(formData.get("averagePressure") ?? ""),
-    pressureLoad: String(formData.get("pressureLoad") ?? ""),
-    pressurePeaks: String(formData.get("pressurePeaks") ?? ""),
-    nightDipping: String(formData.get("nightDipping") ?? ""),
-    specialSituations: String(formData.get("specialSituations") ?? ""),
-    generalConsiderations: String(formData.get("generalConsiderations") ?? ""),
-    conclusion: String(formData.get("conclusion") ?? ""),
-  });
-  await saveEditedSections(reportId, parsed);
-  await prisma.mapaReport.update({
-    where: { id: reportId },
-    data: {
-      includeTrendChart: bool(formData, "includeTrendChart"),
-      includeHistogramChart: bool(formData, "includeHistogramChart"),
-      includePieChart: bool(formData, "includePieChart"),
-      assistantDoctorName:
-        String(formData.get("assistantDoctorName") ?? "").trim() || null,
-    },
-  });
+  const parsed = sectionsFromFormData(formData);
+  if (Object.keys(parsed).length > 0) {
+    await saveEditedSections(reportId, parsed);
+  }
+  if (formData.has("assistantDoctorName")) {
+    await prisma.mapaReport.update({
+      where: { id: reportId },
+      data: {
+        includeTrendChart: bool(formData, "includeTrendChart"),
+        includeHistogramChart: bool(formData, "includeHistogramChart"),
+        includePieChart: bool(formData, "includePieChart"),
+        assistantDoctorName:
+          String(formData.get("assistantDoctorName") ?? "").trim() || null,
+      },
+    });
+  }
   revalidatePath(`/reports/${reportId}`);
+  revalidatePath(`/reports/${reportId}/print`);
 }
 
 export async function updateIncludeChartsAction(reportId: string, formData: FormData) {
@@ -230,9 +236,15 @@ export async function submitReportAction(reportId: string) {
   revalidatePath("/dashboard");
 }
 
-/** Só o aprovador aprova. */
-export async function approveReportAction(reportId: string) {
+/** Só o aprovador aprova. Grava edições in-loco se o formulário as trouxer. */
+export async function approveReportAction(reportId: string, formData?: FormData) {
   await requireApprover();
+  if (formData) {
+    const parsed = sectionsFromFormData(formData);
+    if (Object.keys(parsed).length > 0) {
+      await saveEditedSections(reportId, parsed);
+    }
+  }
   const report = await approveReport(reportId);
   const patient = await prisma.patient.findUnique({
     where: { id: report.patientId },
@@ -262,6 +274,27 @@ export async function regenerateReportAction(reportId: string) {
   revalidatePath(`/reports/${reportId}/print`);
 }
 
+/** Aprovador (ou operador no rascunho) desconsidera uma medição e regenera o laudo. */
+export async function setReportMeasurementDiscardedAction(
+  reportId: string,
+  measurementIndex: number,
+  discarded: boolean,
+) {
+  await requireEditPermission(reportId);
+  await setImportedMeasurementDiscarded({
+    reportId,
+    measurementIndex,
+    discarded,
+  });
+  await generateReportContent(reportId, { keepStatus: true });
+  await logReportEvent({
+    reportId,
+    event: discarded ? "MEASUREMENT_DISCARDED" : "MEASUREMENT_RESTORED",
+  });
+  revalidatePath(`/reports/${reportId}`);
+  revalidatePath(`/reports/${reportId}/print`);
+}
+
 /**
  * Aprovador reprova o pré-laudo com feedback por tópico; quem gerou é notificado.
  * O feedback de cada tópico chega no formulário como `feedback_<key>`.
@@ -275,15 +308,9 @@ export async function returnReportAction(reportId: string, formData: FormData) {
     const note = String(
       formData.get(`${TOPIC_FEEDBACK_PREFIX}${topic.key}`) ?? "",
     ).trim();
-    // Frase pré-definida sugerida pelo revisor para substituir a do tópico.
-    const suggestion = String(formData.get(`phrase_${topic.key}`) ?? "").trim();
-    const parts: string[] = [];
-    if (suggestion) parts.push(`Sugestão de frase: ${suggestion}`);
-    if (note) parts.push(note);
-    if (parts.length > 0) {
-      const combined = parts.join(" — ");
-      byTopic[topic.key] = combined;
-      summaryLines.push(`${topic.label}: ${combined}`);
+    if (note) {
+      byTopic[topic.key] = note;
+      summaryLines.push(`${topic.label}: ${note}`);
     }
   }
 

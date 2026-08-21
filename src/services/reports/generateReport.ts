@@ -73,17 +73,35 @@ function toClinical(report: {
   };
 }
 
-function sectionsToDb(sections: StructuredReportSections) {
+function sectionsToDb(sections: Partial<StructuredReportSections>) {
   return {
-    generatedMedications: sections.medications,
-    generatedTechnicalComments: sections.technicalComments,
-    generatedResults: sections.averagePressure,
-    generatedPressureLoad: sections.pressureLoad,
-    generatedPressurePeaks: sections.pressurePeaks,
-    generatedNightDipping: sections.nightDipping,
-    generatedSpecialSituations: sections.specialSituations,
-    generatedGeneralConsiderations: sections.generalConsiderations,
-    generatedConclusion: sections.conclusion,
+    ...(sections.medications != null
+      ? { generatedMedications: sections.medications }
+      : {}),
+    ...(sections.technicalComments != null
+      ? { generatedTechnicalComments: sections.technicalComments }
+      : {}),
+    ...(sections.averagePressure != null
+      ? { generatedResults: sections.averagePressure }
+      : {}),
+    ...(sections.pressureLoad != null
+      ? { generatedPressureLoad: sections.pressureLoad }
+      : {}),
+    ...(sections.pressurePeaks != null
+      ? { generatedPressurePeaks: sections.pressurePeaks }
+      : {}),
+    ...(sections.nightDipping != null
+      ? { generatedNightDipping: sections.nightDipping }
+      : {}),
+    ...(sections.specialSituations != null
+      ? { generatedSpecialSituations: sections.specialSituations }
+      : {}),
+    ...(sections.generalConsiderations != null
+      ? { generatedGeneralConsiderations: sections.generalConsiderations }
+      : {}),
+    ...(sections.conclusion != null
+      ? { generatedConclusion: sections.conclusion }
+      : {}),
   };
 }
 
@@ -300,12 +318,16 @@ export async function generateReportContent(
 
 export async function saveEditedSections(
   reportId: string,
-  sections: StructuredReportSections,
+  sections: Partial<StructuredReportSections>,
 ) {
+  const data = sectionsToDb(sections);
+  if (Object.keys(data).length === 0) {
+    return prisma.mapaReport.findUniqueOrThrow({ where: { id: reportId } });
+  }
   await logReportEvent({ reportId, event: "REPORT_EDITED" });
   return prisma.mapaReport.update({
     where: { id: reportId },
-    data: sectionsToDb(sections),
+    data,
   });
 }
 

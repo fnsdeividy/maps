@@ -49,6 +49,8 @@ export interface MapaMeasurement {
   invalidReason?: string;
   /** Observação clínica adicionada pelo médico na conferência. */
   observation?: string;
+  /** Desconsiderada pelo revisor na conferência — não entra em médias nem gráficos. */
+  discarded?: boolean;
 }
 
 export interface AwpPatientData {

@@ -196,6 +196,7 @@ export async function buildReportPrintModel(
       meanArterialPressure: measurement.meanArterialPressure,
       heartRate: measurement.heartRate,
       valid: measurement.valid,
+      discarded: Boolean(measurement.discarded),
       observation: measurement.observation?.trim() || null,
     }));
   } else {

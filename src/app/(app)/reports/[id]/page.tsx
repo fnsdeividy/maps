@@ -33,7 +33,11 @@ export default async function ReportReviewPage({
   const approverView = isApprover(user.role);
   const report = await prisma.mapaReport.findUnique({
     where: { id },
-    include: { patient: true, logs: { orderBy: { createdAt: "desc" } } },
+    include: {
+      patient: true,
+      sourceFile: { select: { id: true } },
+      logs: { orderBy: { createdAt: "desc" } },
+    },
   });
   if (!report) notFound();
 
@@ -105,19 +109,41 @@ export default async function ReportReviewPage({
         <div className="mb-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
           <p className="font-semibold">REPROVADO — CORRIGIR PENDÊNCIAS</p>
           <p className="mt-1 text-xs">
-            Veja o feedback em cada tópico abaixo e reenvie para aprovação.
+            Veja o feedback em cada tópico abaixo e reenvie para aprovação. Se
+            precisar alterar medições ou dados clínicos do exame, volte à
+            conferência.
           </p>
         </div>
       ) : null}
 
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">
+          <Link
+            className="text-sm text-slate-600 underline"
+            href="/reports"
+          >
+            Voltar aos laudos
+          </Link>
+          <h1 className="mt-2 text-2xl font-semibold">
             {approverView && !approved ? "Pré-laudo" : "Revisão do laudo"}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             {report.patient.name} · exame em {formatDate(report.examDate)}
           </p>
+          {canEdit && report.sourceFile ? (
+            <p className="mt-2 text-sm">
+              <Link
+                className="font-medium text-teal-800 underline"
+                href={`/reports/import/${report.sourceFile.id}`}
+              >
+                Voltar à conferência do exame
+              </Link>
+              <span className="text-slate-500">
+                {" "}
+                para alterar medições, PA de consultório ou situações especiais.
+              </span>
+            </p>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           {isDev && !approved ? (
@@ -160,18 +186,24 @@ export default async function ReportReviewPage({
           phraseOptions={phraseOptions}
           printModel={printModel}
           reject={reject}
+          save={save}
         />
       ) : (
         <OperatorForm
-          topics={topics}
+          assistantDoctorName={report.assistantDoctorName}
           canEdit={canEdit}
           changesRequested={changesRequested}
-          includeTrendChart={report.includeTrendChart}
+          conferenceHref={
+            canEdit && report.sourceFile
+              ? `/reports/import/${report.sourceFile.id}`
+              : null
+          }
           includeHistogramChart={report.includeHistogramChart}
           includePieChart={report.includePieChart}
-          assistantDoctorName={report.assistantDoctorName}
+          includeTrendChart={report.includeTrendChart}
           save={save}
           submit={submit}
+          topics={topics}
         />
       )}
 
@@ -209,13 +241,15 @@ function ApproverPreLaudo({
   phraseOptions,
   approve,
   reject,
+  save,
 }: {
   printModel: Awaited<ReturnType<typeof buildReportPrintModel>>;
   doctorName?: string | null;
   feedbackByTopic: Partial<Record<string, string>>;
   phraseOptions: Record<string, Array<{ code: string; text: string }>>;
-  approve: () => void;
+  approve: (formData: FormData) => void;
   reject: (formData: FormData) => void;
+  save: (formData: FormData) => void;
 }) {
   if (!printModel) {
     return (
@@ -231,12 +265,15 @@ function ApproverPreLaudo({
     <>
       <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 text-sm">
         <p className="text-slate-600">
-          Revise o laudo abaixo. Cada frase aparece como um componente do laudo.
-          Para reprovar, deixe o feedback nos tópicos que precisam de correção.
+          Revise o laudo abaixo. Você pode editar o texto, aplicar uma frase
+          pronta (ela substitui o tópico na hora) ou devolver com feedback para
+          o operador corrigir.
         </p>
       </div>
 
-      {/* Layout real do laudo (como sairá na impressão), com feedback embutido. */}
+      <form action={save} id="approver-edit-form" />
+
+      {/* Layout real do laudo (como sairá na impressão), com edição embutida. */}
       <section className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-slate-100 p-4">
         <MapaPrintDocument
           assistantDoctorName={report.assistantDoctorName}
@@ -254,8 +291,11 @@ function ApproverPreLaudo({
           officeHeartRate={report.officeHeartRate}
           officeSystolic={report.officeSystolicPressure}
           patient={report.patient}
+          reportId={report.id}
+          canEditMeasurements={Boolean(printModel.measurements.length)}
           review={{
             formId: "reject-form",
+            editFormId: "approver-edit-form",
             labels: TOPIC_LABELS,
             feedbackByTopic,
             phraseOptions,
@@ -280,20 +320,28 @@ function ApproverPreLaudo({
           />
         </label>
         <p className="mt-2 text-xs text-slate-500">
-          Para reprovar, preencha o feedback em pelo menos um tópico (acima, no
-          layout) ou esta observação geral.
+          Se preferir devolver, preencha o feedback em pelo menos um tópico
+          (acima) ou esta observação geral. Se você mesmo corrigir o texto,
+          use Salvar ou Aprovar.
         </p>
       </form>
 
       <div className="mt-4 flex flex-wrap gap-3">
-        <form action={approve}>
-          <button
-            className="rounded-md bg-teal-700 px-5 py-2 text-white"
-            type="submit"
-          >
-            Aprovar laudo
-          </button>
-        </form>
+        <button
+          className="rounded-md border border-slate-300 px-5 py-2 text-slate-800"
+          form="approver-edit-form"
+          type="submit"
+        >
+          Salvar alterações
+        </button>
+        <button
+          className="rounded-md bg-teal-700 px-5 py-2 text-white"
+          form="approver-edit-form"
+          formAction={approve}
+          type="submit"
+        >
+          Aprovar laudo
+        </button>
         <button
           className="rounded-md border border-red-300 px-5 py-2 font-medium text-red-700"
           form="reject-form"
@@ -311,6 +359,7 @@ function OperatorForm({
   topics,
   canEdit,
   changesRequested,
+  conferenceHref,
   includeTrendChart,
   includeHistogramChart,
   includePieChart,
@@ -321,6 +370,7 @@ function OperatorForm({
   topics: TopicView[];
   canEdit: boolean;
   changesRequested: boolean;
+  conferenceHref: string | null;
   includeTrendChart: boolean;
   includeHistogramChart: boolean;
   includePieChart: boolean;
@@ -422,10 +472,15 @@ function OperatorForm({
           );
         })}
         {canEdit ? (
-          <div className="flex gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button className="rounded-md border border-slate-300 px-4 py-2" type="submit">
               Salvar edição
             </button>
+            {conferenceHref ? (
+              <Link className="text-sm text-teal-800 underline" href={conferenceHref}>
+                Voltar à conferência do exame
+              </Link>
+            ) : null}
           </div>
         ) : null}
       </form>

@@ -17,7 +17,7 @@ import {
 import { assertAcceptableAwpUpload } from "./awpUploadGuard";
 import { getClinicSettings } from "@/services/settings/clinicSettings";
 import { resolvePatientFromAwpData } from "@/services/patients/resolvePatientFromForm";
-import type { TriStateFlag } from "@/domain/mapa/specialFlags";
+import { applyMeasurementDiscard, applyMeasurementDiscards } from "@/domain/mapa/import/awp/measurementDiscard";
 
 const parser = new ContecAbpm50AwpParser();
 
@@ -95,7 +95,7 @@ export interface AwpImportPreview {
 async function loadSourceFile(id: string) {
   const sourceFile = await prisma.mapaSourceFile.findUnique({
     where: { id },
-    include: { patient: true },
+    include: { patient: true, report: true },
   });
   if (!sourceFile) return null;
   return { sourceFile, result: deserializeParseResult(sourceFile.payloadJson) };
@@ -160,6 +160,8 @@ export interface ConfirmAwpImportInput {
   pregnancyMonths: number | null;
   /** Observações clínicas por índice de medição. */
   observations?: Record<number, string>;
+  /** Medições desconsideradas pelo revisor na conferência. */
+  discardedIndexes?: number[];
   includeTrendChart?: boolean;
   includeHistogramChart?: boolean;
   includePieChart?: boolean;
@@ -167,7 +169,26 @@ export interface ConfirmAwpImportInput {
   createdById?: string | null;
 }
 
-/** Texto factual sobre os extremos, sem classificar significado clínico. */
+function reportFieldsFromMetrics(metrics: MapaMetrics) {
+  return {
+    totalMeasurements: metrics.totalMeasurements,
+    validMeasurements: metrics.validMeasurements,
+    validMeasurementsPercentage: metrics.validMeasurementsPercentage,
+    avg24hSystolic: metrics.avg24hSystolic,
+    avg24hDiastolic: metrics.avg24hDiastolic,
+    awakeSystolic: metrics.awake?.avgSystolic ?? null,
+    awakeDiastolic: metrics.awake?.avgDiastolic ?? null,
+    sleepSystolic: metrics.sleep?.avgSystolic ?? null,
+    sleepDiastolic: metrics.sleep?.avgDiastolic ?? null,
+    awakeSystolicLoad: metrics.awake?.systolicLoad ?? null,
+    awakeDiastolicLoad: metrics.awake?.diastolicLoad ?? null,
+    sleepSystolicLoad: metrics.sleep?.systolicLoad ?? null,
+    sleepDiastolicLoad: metrics.sleep?.diastolicLoad ?? null,
+    systolicNightDipping: metrics.systolicNightDipping,
+    diastolicNightDipping: metrics.diastolicNightDipping,
+    peakPressureNotes: buildPeakNotes(metrics),
+  };
+}
 function buildPeakNotes(metrics: MapaMetrics): string | null {
   const parts: string[] = [];
   if (metrics.peakSystolic) {
@@ -209,10 +230,13 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
   const observations = input.observations ?? {};
   const measurementsWithNotes = result.measurements.map((measurement) => {
     const observation = observations[measurement.index];
-    if (!observation) return measurement;
-    return { ...measurement, observation };
+    return observation ? { ...measurement, observation } : measurement;
   });
-  const resultWithNotes = { ...result, measurements: measurementsWithNotes };
+  const measurementsForReport = applyMeasurementDiscards(
+    measurementsWithNotes,
+    input.discardedIndexes ?? [],
+  );
+  const resultWithNotes = { ...result, measurements: measurementsForReport };
 
   const { thresholds } = await getClinicSettings();
   const metrics = new MapaMetricsCalculator(thresholds).calculate(
@@ -226,6 +250,17 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
     input.patientId,
     examDate,
   );
+  if (
+    existing?.status === "APPROVED" ||
+    existing?.status === "PENDING_APPROVAL"
+  ) {
+    return {
+      reportId: existing.id,
+      metrics,
+      keepStatus: true,
+      locked: true,
+    };
+  }
 
   const clinical = {
     patientId: input.patientId,
@@ -243,22 +278,7 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
     smoking: input.smoking,
     insomnia: input.insomnia,
     caffeineUse: input.caffeineUse,
-    totalMeasurements: metrics.totalMeasurements,
-    validMeasurements: metrics.validMeasurements,
-    validMeasurementsPercentage: metrics.validMeasurementsPercentage,
-    avg24hSystolic: metrics.avg24hSystolic,
-    avg24hDiastolic: metrics.avg24hDiastolic,
-    awakeSystolic: metrics.awake?.avgSystolic ?? null,
-    awakeDiastolic: metrics.awake?.avgDiastolic ?? null,
-    sleepSystolic: metrics.sleep?.avgSystolic ?? null,
-    sleepDiastolic: metrics.sleep?.avgDiastolic ?? null,
-    awakeSystolicLoad: metrics.awake?.systolicLoad ?? null,
-    awakeDiastolicLoad: metrics.awake?.diastolicLoad ?? null,
-    sleepSystolicLoad: metrics.sleep?.systolicLoad ?? null,
-    sleepDiastolicLoad: metrics.sleep?.diastolicLoad ?? null,
-    systolicNightDipping: metrics.systolicNightDipping,
-    diastolicNightDipping: metrics.diastolicNightDipping,
-    peakPressureNotes: buildPeakNotes(metrics),
+    ...reportFieldsFromMetrics(metrics),
     specialSituations: "[]",
     includeTrendChart: input.includeTrendChart ?? true,
     includeHistogramChart: input.includeHistogramChart ?? true,
@@ -267,16 +287,21 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
     createdById: input.createdById ?? null,
   };
 
+  const keepReview = existing?.status === "CHANGES_REQUESTED";
   const report = existing
     ? await prisma.mapaReport.update({
         where: { id: existing.id },
         data: {
           ...clinical,
-          status: "DRAFT",
-          approvedAt: null,
-          submittedAt: null,
-          reviewNotes: null,
-          reviewNotesByTopic: "{}",
+          ...(keepReview
+            ? {}
+            : {
+                status: "DRAFT",
+                approvedAt: null,
+                submittedAt: null,
+                reviewNotes: null,
+                reviewNotesByTopic: "{}",
+              }),
         },
       })
     : await prisma.mapaReport.create({
@@ -316,12 +341,72 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
   }
   await logReportEvent({ reportId: report.id, event: "FILE_IMPORTED" });
 
-  return { reportId: report.id, metrics };
+  return {
+    reportId: report.id,
+    metrics,
+    keepStatus: keepReview,
+    locked: false,
+  };
 }
 
 export async function discardAwpImport(sourceFileId: string) {
   await prisma.mapaSourceFile.update({
     where: { id: sourceFileId },
     data: { status: "DISCARDED" },
+  });
+}
+
+/**
+ * Desconsidera ou restaura uma medição de um laudo já importado e atualiza
+ * as métricas. O texto do laudo deve ser regenerado em seguida.
+ */
+export async function setImportedMeasurementDiscarded(input: {
+  reportId: string;
+  measurementIndex: number;
+  discarded: boolean;
+}) {
+  const report = await prisma.mapaReport.findUnique({
+    where: { id: input.reportId },
+    include: { sourceFile: true },
+  });
+  if (!report?.sourceFile?.payloadJson) {
+    throw new NoMeasurementsFoundError(
+      "Este laudo não tem arquivo de medições para editar.",
+    );
+  }
+
+  const result = deserializeParseResult(report.sourceFile.payloadJson);
+  const measurements = result.measurements.map((measurement) =>
+    measurement.index === input.measurementIndex
+      ? applyMeasurementDiscard(measurement, input.discarded)
+      : measurement,
+  );
+
+  const sleepWindow: SleepWindowInput | null =
+    report.sourceFile.sleepStart && report.sourceFile.sleepEnd
+      ? {
+          start: report.sourceFile.sleepStart,
+          end: report.sourceFile.sleepEnd,
+        }
+      : result.sleepWindow
+        ? { start: result.sleepWindow.start, end: result.sleepWindow.end }
+        : null;
+
+  const { thresholds } = await getClinicSettings();
+  const metrics = new MapaMetricsCalculator(thresholds).calculate(
+    measurements,
+    sleepWindow,
+  );
+  if (metrics.validMeasurements === 0) throw new NoMeasurementsFoundError();
+
+  await prisma.mapaSourceFile.update({
+    where: { id: report.sourceFile.id },
+    data: {
+      payloadJson: serializeParseResult({ ...result, measurements }),
+    },
+  });
+  await prisma.mapaReport.update({
+    where: { id: report.id },
+    data: reportFieldsFromMetrics(metrics),
   });
 }

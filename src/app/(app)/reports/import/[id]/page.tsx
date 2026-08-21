@@ -16,6 +16,7 @@ import {
 } from "@/lib/numbers";
 import { getAwpImportPreview } from "@/services/imports/awpImport";
 import type { ParseWarning } from "@/domain/mapa/import/awp/types";
+import { isTriStateFlag, type TriStateFlag } from "@/domain/mapa/specialFlags";
 import { confirmAwpImportAction, discardAwpImportAction } from "../actions";
 
 const CONFIDENCE_LABEL: Record<string, string> = {
@@ -45,6 +46,10 @@ function sleepSourceLabel(source: string | null): string {
   return "";
 }
 
+function asTriState(value: string): TriStateFlag | undefined {
+  return isTriStateFlag(value) ? value : undefined;
+}
+
 export default async function AwpImportPreviewPage({
   params,
   searchParams,
@@ -59,6 +64,11 @@ export default async function AwpImportPreviewPage({
   if (!preview) notFound();
 
   const { sourceFile, result, metrics, sleepWindow, sleepSource, canImport } = preview;
+  const linkedReport = sourceFile.report;
+  const alreadyImported = Boolean(linkedReport);
+  const reportLocked =
+    linkedReport?.status === "APPROVED" ||
+    linkedReport?.status === "PENDING_APPROVAL";
 
   const confirm = confirmAwpImportAction.bind(null, sourceFile.id);
   const discard = discardAwpImportAction.bind(null, sourceFile.id);
@@ -66,6 +76,16 @@ export default async function AwpImportPreviewPage({
   const warnings = groupWarnings(result.warnings);
   const patientData = result.patientData;
   const linkedPatient = sourceFile.patient;
+  const specialFlagDefaults = linkedReport
+    ? {
+        pregnancyStatus: asTriState(linkedReport.pregnancyStatus),
+        alcoholUse: asTriState(linkedReport.alcoholUse),
+        smoking: asTriState(linkedReport.smoking),
+        insomnia: asTriState(linkedReport.insomnia),
+        caffeineUse: asTriState(linkedReport.caffeineUse),
+        pregnancyMonths: linkedReport.pregnancyMonths,
+      }
+    : undefined;
   const schedule = result.schedule;
   const invalidMeasurements = result.measurements.filter((measurement) => !measurement.valid);
 
@@ -94,10 +114,32 @@ export default async function AwpImportPreviewPage({
 
   return (
     <div className="max-w-7xl">
-      <h1 className="text-2xl font-semibold">Análise do arquivo</h1>
+      {alreadyImported && linkedReport ? (
+        <Link
+          className="text-sm text-slate-600 underline"
+          href={`/reports/${linkedReport.id}`}
+        >
+          Voltar à revisão do laudo
+        </Link>
+      ) : (
+        <Link className="text-sm text-slate-600 underline" href="/reports/new">
+          Voltar
+        </Link>
+      )}
+      <h1 className="mt-2 text-2xl font-semibold">
+        {alreadyImported ? "Conferência do exame" : "Análise do arquivo"}
+      </h1>
       <p className="mt-1 text-sm text-slate-500">
-        Confira os dados extraídos. Nada é gravado no laudo até você confirmar a importação.
+        {alreadyImported
+          ? "Altere medições, PA de consultório ou situações especiais e grave de novo no laudo."
+          : "Confira os dados extraídos. Nada é gravado no laudo até você confirmar a importação."}
       </p>
+      {reportLocked ? (
+        <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Este laudo já foi enviado ou aprovado. Os dados do exame não podem ser
+          alterados agora.
+        </p>
+      ) : null}
       {formError ? (
         <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {formError}
@@ -403,6 +445,8 @@ export default async function AwpImportPreviewPage({
       <MeasurementObservationTable
         formId={confirmFormId}
         measurements={result.measurements}
+        readOnly={reportLocked}
+        sourceFileId={sourceFile.id}
       />
 
       {warnings.length > 0 ? (
@@ -455,19 +499,32 @@ export default async function AwpImportPreviewPage({
         action={confirm}
         className="mt-4 space-y-6 rounded-lg border border-slate-200 bg-white p-5"
         id={confirmFormId}
-      >        <div>
-          <h2 className="font-semibold">Dados do laudo</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Campos preenchidos a partir do arquivo quando disponíveis. Altere somente o que for
-            diferente do relato clínico.
-          </p>
-        </div>
+      >
+        <fieldset className="space-y-6" disabled={reportLocked}>
+          <div>
+            <h2 className="font-semibold">Dados do laudo</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Campos preenchidos a partir do arquivo quando disponíveis. Altere somente o que for
+              diferente do relato clínico.
+            </p>
+          </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
-            <Field label="Médico assistente" name="assistantDoctorName" required />
+            <Field
+              defaultValue={linkedReport?.assistantDoctorName ?? ""}
+              label="Médico assistente"
+              name="assistantDoctorName"
+              required
+            />
           </div>
           <Field
-            defaultValue={metrics.examStart ? toInputDate(metrics.examStart) : ""}
+            defaultValue={
+              linkedReport
+                ? toInputDate(linkedReport.examDate)
+                : metrics.examStart
+                  ? toInputDate(metrics.examStart)
+                  : ""
+            }
             label="Data do exame"
             name="examDate"
             required
@@ -479,15 +536,35 @@ export default async function AwpImportPreviewPage({
             <span className="mb-1 block text-slate-600">Medicações atuais</span>
             <textarea
               className="w-full rounded-md border border-slate-300 px-3 py-2"
-              defaultValue={patientData?.medications ?? ""}
+              defaultValue={
+                linkedReport?.currentMedications || patientData?.medications || ""
+              }
               name="currentMedications"
               rows={2}
             />
           </label>
-          <Field label="PAS consultório" name="officeSystolicPressure" type="number" />
-          <Field label="PAD consultório" name="officeDiastolicPressure" type="number" />
-          <Field label="FC consultório (bpm)" name="officeHeartRate" type="number" />
-          <SpecialSituationFlags className="col-span-2" />
+          <Field
+            defaultValue={linkedReport?.officeSystolicPressure ?? ""}
+            label="PAS consultório"
+            name="officeSystolicPressure"
+            type="number"
+          />
+          <Field
+            defaultValue={linkedReport?.officeDiastolicPressure ?? ""}
+            label="PAD consultório"
+            name="officeDiastolicPressure"
+            type="number"
+          />
+          <Field
+            defaultValue={linkedReport?.officeHeartRate ?? ""}
+            label="FC consultório (bpm)"
+            name="officeHeartRate"
+            type="number"
+          />
+          <SpecialSituationFlags
+            className="col-span-2"
+            defaults={specialFlagDefaults}
+          />
           <fieldset className="col-span-2 space-y-2 rounded-md border border-slate-200 p-3">
             <legend className="px-1 text-sm font-medium text-slate-800">
               Gráficos no laudo
@@ -496,15 +573,27 @@ export default async function AwpImportPreviewPage({
               Escolha quais páginas de gráfico entram na impressão.
             </p>
             <label className="flex items-center gap-2 text-sm">
-              <input defaultChecked name="includeTrendChart" type="checkbox" />
+              <input
+                defaultChecked={linkedReport?.includeTrendChart ?? true}
+                name="includeTrendChart"
+                type="checkbox"
+              />
               Tendência (BP vs Tempo)
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <input defaultChecked name="includeHistogramChart" type="checkbox" />
+              <input
+                defaultChecked={linkedReport?.includeHistogramChart ?? true}
+                name="includeHistogramChart"
+                type="checkbox"
+              />
               Histograma
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <input defaultChecked name="includePieChart" type="checkbox" />
+              <input
+                defaultChecked={linkedReport?.includePieChart ?? true}
+                name="includePieChart"
+                type="checkbox"
+              />
               Gráfico de pizza
             </label>
           </fieldset>
@@ -512,22 +601,31 @@ export default async function AwpImportPreviewPage({
         <div className="flex items-center gap-3">
           <button
             className="rounded-md bg-teal-700 px-4 py-2 text-white disabled:opacity-50"
-            disabled={!canImport}
+            disabled={!canImport || reportLocked}
             type="submit"
           >
-            Importar dados para o laudo
+            {alreadyImported ? "Salvar alterações no laudo" : "Importar dados para o laudo"}
           </button>
-          <Link className="text-sm text-slate-600 underline" href="/reports/new">
-            Voltar
-          </Link>
+          {alreadyImported && linkedReport ? (
+            <Link className="text-sm text-slate-600 underline" href={`/reports/${linkedReport.id}`}>
+              Voltar à revisão
+            </Link>
+          ) : (
+            <Link className="text-sm text-slate-600 underline" href="/reports/new">
+              Voltar
+            </Link>
+          )}
         </div>
+        </fieldset>
       </form>
 
-      <form action={discard} className="mt-3">
-        <button className="text-sm text-red-700 underline" type="submit">
-          Cancelar e descartar esta análise
-        </button>
-      </form>
+      {!alreadyImported ? (
+        <form action={discard} className="mt-3">
+          <button className="text-sm text-red-700 underline" type="submit">
+            Cancelar e descartar esta análise
+          </button>
+        </form>
+      ) : null}
     </div>
   );
 }

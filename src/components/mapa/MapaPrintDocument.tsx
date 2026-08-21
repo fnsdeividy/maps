@@ -3,6 +3,8 @@ import { BpHistogramCharts } from "@/components/BpHistogramCharts";
 import { BpPieCharts } from "@/components/BpPieCharts";
 import { BpTimeChart } from "@/components/BpTimeChart";
 import { guidelineFooter, stripGuidelineFooter } from "@/domain/mapa/config/guideline";
+import { PrintMeasurementsTable } from "@/components/mapa/PrintMeasurementsTable";
+import { ApproverTopicEditor } from "@/components/mapa/ApproverTopicEditor";
 import { interpretationDisplayText } from "@/domain/mapa/interpretation";
 import type { MapaThresholds } from "@/domain/mapa/config/thresholds";
 import { mapAwpGenderCode } from "@/domain/mapa/import/awp/patientData";
@@ -192,7 +194,7 @@ function splitPhrases(text: string): string[] {
     .filter(Boolean);
 }
 
-/** Frases do tópico renderizadas como blocos/componentes (modo pré-laudo). */
+/** Frases do tópico renderizadas como blocos (impressão do pré-laudo). */
 function PhraseComponents({ text }: { text: string }) {
   const phrases = splitPhrases(text);
   if (phrases.length === 0) return <p>—</p>;
@@ -206,53 +208,6 @@ function PhraseComponents({ text }: { text: string }) {
           {phrase}
         </div>
       ))}
-    </div>
-  );
-}
-
-/** Campo de feedback por tópico, embutido no layout e ligado ao form externo. */
-function ReviewControls({
-  formId,
-  topicKey,
-  label,
-  feedback,
-  phrases = [],
-}: {
-  formId: string;
-  topicKey: string;
-  label: string;
-  feedback?: string;
-  phrases?: Array<{ code: string; text: string }>;
-}) {
-  return (
-    <div className="print:hidden mt-2 rounded-md border border-dashed border-rose-300 bg-rose-50/50 p-2">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-600">
-        Feedback — {label} (se reprovar)
-      </p>
-      {phrases.length > 0 ? (
-        <select
-          className="mt-1 w-full rounded border border-rose-200 bg-white px-2 py-1 text-[11px]"
-          defaultValue=""
-          form={formId}
-          name={`phrase_${topicKey}`}
-        >
-          <option value="">Sugerir outra frase pré-definida (opcional)…</option>
-          {phrases.map((phrase) => (
-            <option key={phrase.code} value={phrase.text}>
-              {phrase.text}
-            </option>
-          ))}
-        </select>
-      ) : null}
-      <textarea
-        className="mt-1 w-full rounded border border-rose-200 bg-white px-2 py-1 text-[11px]"
-        defaultValue={feedback}
-        form={formId}
-        id={`fb-${topicKey}`}
-        name={`feedback_${topicKey}`}
-        placeholder="Descreva o que precisa ser corrigido neste tópico"
-        rows={2}
-      />
     </div>
   );
 }
@@ -346,6 +301,8 @@ export function MapaPrintDocument({
   includePieChart = true,
   guidelineNote = guidelineFooter,
   review = null,
+  reportId,
+  canEditMeasurements = false,
 }: {
   patient: PatientInfo;
   awpPatient?: AwpPatientData | null;
@@ -373,6 +330,7 @@ export function MapaPrintDocument({
     meanArterialPressure?: number | null;
     heartRate?: number | null;
     valid: boolean;
+    discarded?: boolean;
     observation?: string | null;
   }>;
   includeTrendChart?: boolean;
@@ -380,16 +338,18 @@ export function MapaPrintDocument({
   includePieChart?: boolean;
   guidelineNote?: string;
   /**
-   * Modo pré-laudo do aprovador: mostra cada frase como um componente e um
-   * campo de feedback por tópico embutido no layout (associado ao form pelo id).
+   * Modo pré-laudo do aprovador: cada tópico é editável, com frases prontas
+   * e feedback para devolver ao operador.
    */
   review?: {
     formId: string;
+    editFormId: string;
     labels: Record<string, string>;
     feedbackByTopic?: Partial<Record<string, string>>;
-    /** Frases pré-definidas por tópico para o revisor sugerir uma alternativa. */
     phraseOptions?: Partial<Record<string, Array<{ code: string; text: string }>>>;
   } | null;
+  reportId?: string;
+  canEditMeasurements?: boolean;
 }) {
   const age = ageAt(patient.birthDate, examDate);
   const sexLabel = genderLabel(
@@ -562,38 +522,50 @@ export function MapaPrintDocument({
 
         <SectionTitle>Medicações atuais</SectionTitle>
         <div className="print-keep mt-2 border border-black p-2 text-[11px] leading-relaxed">
-          <p className="whitespace-pre-wrap">{medsBody}</p>
+          {review ? (
+            <>
+              <div className="hidden print:block">
+                <p className="whitespace-pre-wrap">{medsBody}</p>
+              </div>
+              <ApproverTopicEditor
+                editFormId={review.editFormId}
+                feedback={review.feedbackByTopic?.medications}
+                label={review.labels.medications ?? "Medicações atuais"}
+                phrases={review.phraseOptions?.medications}
+                rejectFormId={review.formId}
+                topicKey="medications"
+                value={medsBody}
+              />
+            </>
+          ) : (
+            <p className="whitespace-pre-wrap">{medsBody}</p>
+          )}
           <p className="mt-2 font-medium">{officeBpLine}</p>
         </div>
-        {review ? (
-          <ReviewControls
-            feedback={review.feedbackByTopic?.medications}
-            formId={review.formId}
-            label={review.labels.medications ?? "Medicações atuais"}
-            phrases={review.phraseOptions?.medications}
-            topicKey="medications"
-          />
-        ) : null}
 
         {specialBody ? (
           <>
             <SectionTitle>Situações especiais</SectionTitle>
             <div className="print-keep mt-2 border border-black p-2 text-[11px] leading-relaxed">
               {review ? (
-                <PhraseComponents text={specialBody} />
+                <>
+                  <div className="hidden print:block">
+                    <PhraseComponents text={specialBody} />
+                  </div>
+                  <ApproverTopicEditor
+                    editFormId={review.editFormId}
+                    feedback={review.feedbackByTopic?.specialSituations}
+                    label={review.labels.specialSituations ?? "Situações especiais"}
+                    phrases={review.phraseOptions?.specialSituations}
+                    rejectFormId={review.formId}
+                    topicKey="specialSituations"
+                    value={specialBody}
+                  />
+                </>
               ) : (
                 <p className="whitespace-pre-wrap">{specialBody}</p>
               )}
             </div>
-            {review ? (
-              <ReviewControls
-                feedback={review.feedbackByTopic?.specialSituations}
-                formId={review.formId}
-                label={review.labels.specialSituations ?? "Situações especiais"}
-                phrases={review.phraseOptions?.specialSituations}
-                topicKey="specialSituations"
-              />
-            ) : null}
           </>
         ) : null}
 
@@ -846,68 +818,11 @@ export function MapaPrintDocument({
         <article className="print-page mx-auto mt-8 max-w-[210mm] bg-white p-6 print:mt-0 print:p-0">
           <PrintHeader {...headerProps} />
           <SectionTitle>Dados medidos</SectionTitle>
-          <table className="mt-3 w-full border-collapse text-[9px]">
-            <thead>
-              <tr className="border-b border-black text-left">
-                <th className="py-1 pr-2">ID</th>
-                <th className="py-1 pr-2">Data</th>
-                <th className="py-1 pr-2">Horário</th>
-                <th className="py-1 pr-2 text-right">SIS</th>
-                <th className="py-1 pr-2 text-right">MAP</th>
-                <th className="py-1 pr-2 text-right">DIA</th>
-                <th className="py-1 pr-2 text-right">PP</th>
-                <th className="py-1 pr-2 text-right">FC</th>
-                <th className="py-1 pr-2">Estado</th>
-                <th className="py-1">Comentário</th>
-              </tr>
-            </thead>
-            <tbody>
-              {measurements.map((row) => {
-                const map =
-                  row.meanArterialPressure != null
-                    ? row.meanArterialPressure
-                    : Math.round((row.systolic + 2 * row.diastolic) / 3);
-                const pp = row.systolic - row.diastolic;
-                return (
-                  <tr
-                    className="border-b border-slate-200 align-top break-inside-avoid"
-                    key={row.index}
-                  >
-                    <td className="py-0.5 pr-2">{row.index}</td>
-                    <td className="py-0.5 pr-2 whitespace-nowrap">
-                      {formatDate(row.at)}
-                    </td>
-                    <td className="py-0.5 pr-2 whitespace-nowrap">
-                      {formatTime(row.at)}
-                    </td>
-                    <td className="py-0.5 pr-2 text-right">
-                      {row.valid ? formatInteger(row.systolic) : "—"}
-                    </td>
-                    <td className="py-0.5 pr-2 text-right">
-                      {row.valid ? formatInteger(map) : "—"}
-                    </td>
-                    <td className="py-0.5 pr-2 text-right">
-                      {row.valid ? formatInteger(row.diastolic) : "—"}
-                    </td>
-                    <td className="py-0.5 pr-2 text-right">
-                      {row.valid ? formatInteger(pp) : "—"}
-                    </td>
-                    <td className="py-0.5 pr-2 text-right">
-                      {row.valid && row.heartRate != null
-                        ? formatInteger(row.heartRate)
-                        : "—"}
-                    </td>
-                    <td className="py-0.5 pr-2 whitespace-nowrap">
-                      {row.valid ? "OK" : "Inválida"}
-                    </td>
-                    <td className="py-0.5 whitespace-pre-wrap">
-                      {row.observation ?? ""}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <PrintMeasurementsTable
+            editable={canEditMeasurements}
+            measurements={measurements}
+            reportId={reportId}
+          />
           <p className="mt-8 text-center text-[10px] text-slate-600">
             Este relatório somente pode ser usado para referência clínica
           </p>
@@ -927,19 +842,27 @@ export function MapaPrintDocument({
                 key={frame.title}
                 title={frame.title}
               >
-                {review ? <PhraseComponents text={frame.text} /> : frame.text}
-                {review
-                  ? frame.topicKeys.map((topicKey) => (
-                      <ReviewControls
+                {review ? (
+                  <>
+                    <div className="hidden print:block">
+                      <PhraseComponents text={frame.text} />
+                    </div>
+                    {frame.topicKeys.map((topicKey) => (
+                      <ApproverTopicEditor
+                        editFormId={review.editFormId}
                         feedback={review.feedbackByTopic?.[topicKey]}
-                        formId={review.formId}
                         key={topicKey}
                         label={review.labels[topicKey] ?? frame.title}
                         phrases={review.phraseOptions?.[topicKey]}
+                        rejectFormId={review.formId}
                         topicKey={topicKey}
+                        value={frame.text}
                       />
-                    ))
-                  : null}
+                    ))}
+                  </>
+                ) : (
+                  frame.text
+                )}
               </CommentBlock>
             ))
           ) : (

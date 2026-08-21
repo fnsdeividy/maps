@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/authz";
 import { toUserMessage } from "@/domain/mapa/import/awp/errors";
+import { applyMeasurementDiscard } from "@/domain/mapa/import/awp/measurementDiscard";
 import { readRequiredSpecialFlags } from "@/domain/mapa/specialFlags";
 import { generateReportContent } from "@/services/reports/generateReport";
 import {
@@ -11,6 +12,10 @@ import {
   confirmAwpImport,
   discardAwpImport,
 } from "@/services/imports/awpImport";
+import {
+  deserializeParseResult,
+  serializeParseResult,
+} from "@/services/imports/awpParseResultCodec";
 import { PatientResolutionError } from "@/services/patients/resolvePatientFromForm";
 import { prisma } from "@/lib/prisma";
 
@@ -44,6 +49,17 @@ function readObservations(formData: FormData): Record<number, string> {
     observations[Number(match[1])] = text.slice(0, 240);
   }
   return observations;
+}
+
+/** Índices marcados para desconsiderar na conferência. */
+function readDiscardedIndexes(formData: FormData): number[] {
+  const indexes: number[] = [];
+  for (const [key, value] of formData.entries()) {
+    const match = /^discarded_(\d+)$/.exec(key);
+    if (!match || value !== "1") continue;
+    indexes.push(Number(match[1]));
+  }
+  return indexes;
 }
 
 export type AwpAnalyzeState = { error?: string };
@@ -84,11 +100,17 @@ export async function confirmAwpImportAction(sourceFileId: string, formData: For
 
   const sourceFile = await prisma.mapaSourceFile.findUnique({
     where: { id: sourceFileId },
-    select: { patientId: true },
+    select: { patientId: true, report: { select: { id: true, status: true } } },
   });
   const patientId = sourceFile?.patientId;
   if (!patientId) {
     redirect(`/reports/import/${sourceFileId}?error=paciente-ausente`);
+  }
+  if (
+    sourceFile?.report?.status === "APPROVED" ||
+    sourceFile?.report?.status === "PENDING_APPROVAL"
+  ) {
+    redirect(`/reports/${sourceFile.report.id}`);
   }
 
   const examDateValue = String(formData.get("examDate") ?? "");
@@ -104,7 +126,7 @@ export async function confirmAwpImportAction(sourceFileId: string, formData: For
     redirect(`/reports/import/${sourceFileId}?error=gestacao-meses`);
   }
 
-  const { reportId } = await confirmAwpImport({
+  const { reportId, keepStatus, locked } = await confirmAwpImport({
     sourceFileId,
     patientId,
     examDate: new Date(examDateValue),
@@ -121,6 +143,7 @@ export async function confirmAwpImportAction(sourceFileId: string, formData: For
     caffeineUse: specialFlags.caffeineUse,
     pregnancyMonths: num(formData, "pregnancyMonths"),
     observations: readObservations(formData),
+    discardedIndexes: readDiscardedIndexes(formData),
     includeTrendChart: bool(formData, "includeTrendChart"),
     includeHistogramChart: bool(formData, "includeHistogramChart"),
     includePieChart: bool(formData, "includePieChart"),
@@ -129,7 +152,11 @@ export async function confirmAwpImportAction(sourceFileId: string, formData: For
     createdById: user.id,
   });
 
-  await generateReportContent(reportId);
+  if (locked) {
+    redirect(`/reports/${reportId}`);
+  }
+
+  await generateReportContent(reportId, { keepStatus });
 
   revalidatePath("/reports");
   revalidatePath("/dashboard");
@@ -140,4 +167,39 @@ export async function discardAwpImportAction(sourceFileId: string) {
   await requireUser();
   await discardAwpImport(sourceFileId);
   redirect("/reports/new");
+}
+
+/** Desconsidera ou restaura uma medição na análise, antes de gerar o laudo. */
+export async function setMeasurementDiscardedAction(
+  sourceFileId: string,
+  measurementIndex: number,
+  discarded: boolean,
+) {
+  await requireUser();
+  const sourceFile = await prisma.mapaSourceFile.findUnique({
+    where: { id: sourceFileId },
+    select: {
+      payloadJson: true,
+      report: { select: { status: true } },
+    },
+  });
+  if (!sourceFile) return;
+  if (
+    sourceFile.report?.status === "APPROVED" ||
+    sourceFile.report?.status === "PENDING_APPROVAL"
+  ) {
+    return;
+  }
+
+  const result = deserializeParseResult(sourceFile.payloadJson);
+  const measurements = result.measurements.map((measurement) =>
+    measurement.index === measurementIndex
+      ? applyMeasurementDiscard(measurement, discarded)
+      : measurement,
+  );
+  await prisma.mapaSourceFile.update({
+    where: { id: sourceFileId },
+    data: { payloadJson: serializeParseResult({ ...result, measurements }) },
+  });
+  revalidatePath(`/reports/import/${sourceFileId}`);
 }

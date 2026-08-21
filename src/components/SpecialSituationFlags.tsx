@@ -18,7 +18,9 @@ export function SpecialSituationFlags({
   defaults,
 }: {
   className?: string;
-  defaults?: Partial<Record<(typeof SPECIAL_FLAG_FIELDS)[number]["name"], TriStateFlag>>;
+  defaults?: Partial<
+    Record<(typeof SPECIAL_FLAG_FIELDS)[number]["name"], TriStateFlag>
+  > & { pregnancyMonths?: number | null };
 }) {
   const [pregnancyStatus, setPregnancyStatus] = useState<TriStateFlag | "">(
     defaults?.pregnancyStatus ?? "",
@@ -67,6 +69,7 @@ export function SpecialSituationFlags({
               {isPregnancy && pregnancyStatus === "YES" ? (
                 <div className="mt-2 max-w-xs">
                   <Field
+                    defaultValue={defaults?.pregnancyMonths ?? ""}
                     label="Meses de gestação"
                     name="pregnancyMonths"
                     required
