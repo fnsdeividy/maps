@@ -7,8 +7,9 @@ import {
   type MapaMetrics,
   type SleepWindowInput,
 } from "@/domain/mapa/services/MapaMetricsCalculator";
-import { formatDateTime } from "@/lib/dates";
+import { formatDateTime, normalizeExamDate } from "@/lib/dates";
 import { logReportEvent } from "@/services/audit/log";
+import { reportRepository } from "@/repositories/reportRepository";
 import {
   deserializeParseResult,
   serializeParseResult,
@@ -183,9 +184,9 @@ function buildPeakNotes(metrics: MapaMetrics): string | null {
 }
 
 /**
- * Grava as métricas calculadas nos campos que o Rule Engine já consome. O
- * laudo em si continua sendo produzido por `generateReportContent`, sem
- * qualquer motor de regras paralelo.
+ * Grava as métricas no laudo do paciente naquela data de exame.
+ * Se o laudo já existir, atualiza o mesmo registro (e o status) em vez de duplicar.
+ * O texto do laudo continua sendo produzido por `generateReportContent`.
  */
 export async function confirmAwpImport(input: ConfirmAwpImportInput) {
   const loaded = await loadSourceFile(input.sourceFileId);
@@ -220,48 +221,77 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
   );
   if (metrics.validMeasurements === 0) throw new NoMeasurementsFoundError();
 
-  const report = await prisma.mapaReport.create({
-    data: {
-      patientId: input.patientId,
-      examDate: input.examDate,
-      source: "FILE",
-      status: "DRAFT",
-      currentMedications: input.currentMedications,
-      officeSystolicPressure: input.officeSystolicPressure,
-      officeDiastolicPressure: input.officeDiastolicPressure,
-      officeHeartRate: input.officeHeartRate,
-      pregnancy: input.pregnancyStatus === "YES",
-      pregnancyMonths:
-        input.pregnancyStatus === "YES" ? input.pregnancyMonths : null,
-      pregnancyStatus: input.pregnancyStatus,
-      alcoholUse: input.alcoholUse,
-      smoking: input.smoking,
-      insomnia: input.insomnia,
-      caffeineUse: input.caffeineUse,
-      totalMeasurements: metrics.totalMeasurements,
-      validMeasurements: metrics.validMeasurements,
-      validMeasurementsPercentage: metrics.validMeasurementsPercentage,
-      avg24hSystolic: metrics.avg24hSystolic,
-      avg24hDiastolic: metrics.avg24hDiastolic,
-      awakeSystolic: metrics.awake?.avgSystolic ?? null,
-      awakeDiastolic: metrics.awake?.avgDiastolic ?? null,
-      sleepSystolic: metrics.sleep?.avgSystolic ?? null,
-      sleepDiastolic: metrics.sleep?.avgDiastolic ?? null,
-      awakeSystolicLoad: metrics.awake?.systolicLoad ?? null,
-      awakeDiastolicLoad: metrics.awake?.diastolicLoad ?? null,
-      sleepSystolicLoad: metrics.sleep?.systolicLoad ?? null,
-      sleepDiastolicLoad: metrics.sleep?.diastolicLoad ?? null,
-      systolicNightDipping: metrics.systolicNightDipping,
-      diastolicNightDipping: metrics.diastolicNightDipping,
-      peakPressureNotes: buildPeakNotes(metrics),
-      specialSituations: "[]",
-      includeTrendChart: input.includeTrendChart ?? true,
-      includeHistogramChart: input.includeHistogramChart ?? true,
-      includePieChart: input.includePieChart ?? true,
-      assistantDoctorName: input.assistantDoctorName?.trim() || null,
-      createdById: input.createdById ?? null,
-    },
-  });
+  const examDate = normalizeExamDate(input.examDate);
+  const existing = await reportRepository.findByPatientAndExamDay(
+    input.patientId,
+    examDate,
+  );
+
+  const clinical = {
+    patientId: input.patientId,
+    examDate,
+    source: "FILE" as const,
+    currentMedications: input.currentMedications,
+    officeSystolicPressure: input.officeSystolicPressure,
+    officeDiastolicPressure: input.officeDiastolicPressure,
+    officeHeartRate: input.officeHeartRate,
+    pregnancy: input.pregnancyStatus === "YES",
+    pregnancyMonths:
+      input.pregnancyStatus === "YES" ? input.pregnancyMonths : null,
+    pregnancyStatus: input.pregnancyStatus,
+    alcoholUse: input.alcoholUse,
+    smoking: input.smoking,
+    insomnia: input.insomnia,
+    caffeineUse: input.caffeineUse,
+    totalMeasurements: metrics.totalMeasurements,
+    validMeasurements: metrics.validMeasurements,
+    validMeasurementsPercentage: metrics.validMeasurementsPercentage,
+    avg24hSystolic: metrics.avg24hSystolic,
+    avg24hDiastolic: metrics.avg24hDiastolic,
+    awakeSystolic: metrics.awake?.avgSystolic ?? null,
+    awakeDiastolic: metrics.awake?.avgDiastolic ?? null,
+    sleepSystolic: metrics.sleep?.avgSystolic ?? null,
+    sleepDiastolic: metrics.sleep?.avgDiastolic ?? null,
+    awakeSystolicLoad: metrics.awake?.systolicLoad ?? null,
+    awakeDiastolicLoad: metrics.awake?.diastolicLoad ?? null,
+    sleepSystolicLoad: metrics.sleep?.systolicLoad ?? null,
+    sleepDiastolicLoad: metrics.sleep?.diastolicLoad ?? null,
+    systolicNightDipping: metrics.systolicNightDipping,
+    diastolicNightDipping: metrics.diastolicNightDipping,
+    peakPressureNotes: buildPeakNotes(metrics),
+    specialSituations: "[]",
+    includeTrendChart: input.includeTrendChart ?? true,
+    includeHistogramChart: input.includeHistogramChart ?? true,
+    includePieChart: input.includePieChart ?? true,
+    assistantDoctorName: input.assistantDoctorName?.trim() || null,
+    createdById: input.createdById ?? null,
+  };
+
+  const report = existing
+    ? await prisma.mapaReport.update({
+        where: { id: existing.id },
+        data: {
+          ...clinical,
+          status: "DRAFT",
+          approvedAt: null,
+          submittedAt: null,
+          reviewNotes: null,
+          reviewNotesByTopic: "{}",
+        },
+      })
+    : await prisma.mapaReport.create({
+        data: {
+          ...clinical,
+          status: "DRAFT",
+        },
+      });
+
+  if (existing) {
+    await prisma.mapaSourceFile.updateMany({
+      where: { reportId: report.id, id: { not: sourceFile.id } },
+      data: { reportId: null },
+    });
+  }
 
   await prisma.mapaSourceFile.update({
     where: { id: sourceFile.id },
@@ -281,7 +311,9 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
     },
   });
 
-  await logReportEvent({ reportId: report.id, event: "REPORT_CREATED" });
+  if (!existing) {
+    await logReportEvent({ reportId: report.id, event: "REPORT_CREATED" });
+  }
   await logReportEvent({ reportId: report.id, event: "FILE_IMPORTED" });
 
   return { reportId: report.id, metrics };

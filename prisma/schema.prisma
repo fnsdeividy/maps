@@ -71,8 +71,10 @@ model MapaReport {
   createdById String?
   createdBy   User?   @relation("ReportCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  /// Pendências apontadas pelo aprovador ao devolver o laudo.
+  /// Pendências apontadas pelo aprovador ao devolver o laudo (resumo consolidado).
   reviewNotes String?
+  /// Feedback por tópico na reprovação (JSON: { [sectionKey]: string }).
+  reviewNotesByTopic String @default("{}")
   submittedAt DateTime?
 
   currentMedications String @default("")
@@ -145,6 +147,7 @@ model MapaReport {
   logs       ReportGenerationLog[]
   sourceFile MapaSourceFile?
 
+  @@unique([patientId, examDate])
   @@index([patientId])
   @@index([status])
   @@index([createdAt])

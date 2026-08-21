@@ -313,7 +313,7 @@ export const REPORT_PHRASES: Array<{
     text: "Pressão Arterial sistólica e/ou diastólica, no consultório, elevada.",
   },
 
-  // Considerações gerais
+  // Considerações clínicas
   {
     code: "OFFICE_VS_MAPA_WHITE_COAT",
     category: "GENERAL_CONSIDERATION",
@@ -338,6 +338,16 @@ export const REPORT_PHRASES: Array<{
     code: "GENERAL_NAP_PHYSIOLOGIC",
     category: "GENERAL_CONSIDERATION",
     text: "Observamos comportamento fisiológico da Pressão Arterial, relacionada ao período de sesta (sono durante o dia).",
+  },
+  {
+    code: "GENERAL_HR_PHYSIOLOGIC",
+    category: "GENERAL_CONSIDERATION",
+    text: "A variação das frequências cardíacas permaneceu dentro dos limites fisiológicos.",
+  },
+  {
+    code: "GENERAL_CONSIDER_CV_MEDS",
+    category: "GENERAL_CONSIDERATION",
+    text: "Considerar o uso de medicamentos de efeito cardiovascular.",
   },
   {
     code: "GUIDELINE_FOOTER",
@@ -369,7 +379,22 @@ export const REPORT_PHRASES: Array<{
   {
     code: "CONCLUSION_NORMOTENSION_ALTERED_AWAKE_SYS",
     category: "CONCLUSION",
-    text: "Exame com valores compatíveis com Normotensão Arterial, porém resultado alterado pela elevação da média total da Pressão Arterial Sistólica na Vigília.",
+    text: "Exame com valores compatíveis com Normotensão Arterial, porém resultado alterado pela elevação da média da Pressão Arterial Sistólica na Vigília.",
+  },
+  {
+    code: "CONCLUSION_NORMOTENSION_ALTERED_AWAKE_DIA",
+    category: "CONCLUSION",
+    text: "Exame com valores compatíveis com Normotensão Arterial, porém resultado alterado pela elevação da média da Pressão Arterial Diastólica na Vigília.",
+  },
+  {
+    code: "CONCLUSION_NORMOTENSION_ALTERED_SLEEP_SYS",
+    category: "CONCLUSION",
+    text: "Exame com valores compatíveis com Normotensão Arterial, porém resultado alterado pela elevação da média da Pressão Arterial Sistólica no Sono.",
+  },
+  {
+    code: "CONCLUSION_NORMOTENSION_ALTERED_SLEEP_DIA",
+    category: "CONCLUSION",
+    text: "Exame com valores compatíveis com Normotensão Arterial, porém resultado alterado pela elevação da média da Pressão Arterial Diastólica no Sono.",
   },
   {
     code: "CONCLUSION_NORMOTENSION_ALTERED_DIPPING",
@@ -380,6 +405,11 @@ export const REPORT_PHRASES: Array<{
     code: "CONCLUSION_CONSIDER_STRESS_OR_MEDS",
     category: "CONCLUSION",
     text: "Considerar, durante o exame, efeito de estresse físico/ emocional ou medicações com efeito cardiovascular.",
+  },
+  {
+    code: "CONCLUSION_CONSIDER_LOA",
+    category: "CONCLUSION",
+    text: "Considerar o aumento de LOA relacionadas aos resultados apresentados.",
   },
   {
     code: "CONCLUSION_MISSING_OFFICE",

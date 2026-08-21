@@ -701,6 +701,9 @@ export class MapaRuleEngine {
 
     const dippingAbnormal = this.hasAbnormalNightDipping(data);
 
+    // Interpretação sempre recebe a conclusão diagnóstica. Em normotensão com
+    // achado extra (vigília/descenso), a frase mais específica substitui a
+    // genérica para não contradizer “verdadeira” com “porém alterado”.
     if (classification === "NORMOTENSION" && awakeSysElevated) {
       results.push({
         code: "CONCLUSION_NORMOTENSION_ALTERED_AWAKE_SYS",

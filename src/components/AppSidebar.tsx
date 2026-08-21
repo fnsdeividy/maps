@@ -9,6 +9,7 @@ const links = [
   { href: "/patients", label: "Pacientes" },
   { href: "/reports", label: "Laudos" },
   { href: "/reports/new", label: "Novo Laudo" },
+  { href: "/phrases", label: "Frases" },
   { href: "/notifications", label: "Notificações" },
   { href: "/ai-usage", label: "Consumo de IA" },
   { href: "/settings", label: "Configurações" },

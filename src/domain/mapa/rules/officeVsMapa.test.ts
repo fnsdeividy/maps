@@ -77,7 +77,42 @@ describe("produção com limiares padrão do roteiro", () => {
     expect(results.some((item) => item.code === "OFFICE_VS_MAPA_WHITE_COAT")).toBe(
       true,
     );
-    expect(results.some((item) => item.code === "CONCLUSION_WHITE_COAT")).toBe(true);
+    expect(results.some((item) => item.code === "CONCLUSION_WHITE_COAT")).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    {
+      office: [150, 95] as const,
+      mapa: [120, 70] as const,
+      conclusion: "CONCLUSION_WHITE_COAT",
+    },
+    {
+      office: [120, 80] as const,
+      mapa: [140, 90] as const,
+      conclusion: "CONCLUSION_MASKED",
+    },
+    {
+      office: [150, 95] as const,
+      mapa: [140, 90] as const,
+      conclusion: "CONCLUSION_SUSTAINED",
+    },
+    {
+      office: [120, 80] as const,
+      mapa: [120, 70] as const,
+      conclusion: "CONCLUSION_NORMOTENSION",
+    },
+  ])("interpretação recebe $conclusion", ({ office, mapa, conclusion }) => {
+    const engine = new MapaRuleEngine();
+    const results = engine.evaluate({
+      currentMedications: "",
+      officeSystolicPressure: office[0],
+      officeDiastolicPressure: office[1],
+      avg24hSystolic: mapa[0],
+      avg24hDiastolic: mapa[1],
+    });
+    expect(results.some((item) => item.code === conclusion)).toBe(true);
   });
 
   it("não classifica office vs MAPA quando limiar de consultório é desativado", () => {

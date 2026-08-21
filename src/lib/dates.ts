@@ -69,6 +69,24 @@ export function toInputDate(value: Date | string) {
   return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`;
 }
 
+/** Meia-noite UTC do dia civil do exame — chave paciente + data. */
+export function normalizeExamDate(value: Date | string): Date {
+  const parts = wallClockParts(value);
+  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+}
+
+/** Intervalo [início, fim) do dia civil do exame, em UTC. */
+export function examDayRange(value: Date | string): {
+  start: Date;
+  endExclusive: Date;
+} {
+  const start = normalizeExamDate(value);
+  const endExclusive = new Date(
+    Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + 1),
+  );
+  return { start, endExclusive };
+}
+
 /** Serialização estável para JSON/payload AWP (nunca depende do fuso da máquina). */
 export function toStoredDateTime(value: Date): string {
   return toWallClockIso(value);

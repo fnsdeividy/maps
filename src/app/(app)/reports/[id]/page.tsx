@@ -1,14 +1,27 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { MapaPrintDocument } from "@/components/mapa/MapaPrintDocument";
 import { prisma } from "@/lib/prisma";
 import { isApprover, requireUser } from "@/lib/authz";
 import { formatDate } from "@/lib/dates";
+import { REPORT_TOPICS, parseTopicFeedback } from "@/domain/mapa/reportTopics";
+import {
+  EMPTY_REPORT_TEXT,
+  interpretationDisplayText,
+} from "@/domain/mapa/interpretation";
+import { SECTION_CATEGORY } from "@/services/ai/AiPhraseSelectionService";
+import { buildReportPrintModel } from "@/services/reports/printModel";
 import {
   approveReportAction,
+  regenerateReportAction,
   returnReportAction,
   submitReportAction,
   updateReportSections,
 } from "../actions";
+
+const TOPIC_LABELS: Record<string, string> = Object.fromEntries(
+  REPORT_TOPICS.map((topic) => [topic.key, topic.label]),
+);
 
 export default async function ReportReviewPage({
   params,
@@ -27,12 +40,52 @@ export default async function ReportReviewPage({
   const approved = report.status === "APPROVED";
   const pendingApproval = report.status === "PENDING_APPROVAL";
   const changesRequested = report.status === "CHANGES_REQUESTED";
+  const topicFeedback = parseTopicFeedback(report.reviewNotesByTopic);
+
+  const topics = REPORT_TOPICS.map((topic) => ({
+    ...topic,
+    value: (report[topic.field as keyof typeof report] as string | null) ?? "",
+    feedback: topicFeedback[topic.key],
+  }));
+
   // Operador não altera laudo que está na mesa do aprovador nem laudo aprovado.
-  const canEdit = !approved && (approverView || !pendingApproval);
+  const canEdit = !approved && !approverView && !pendingApproval;
+  const isDev = process.env.NODE_ENV !== "production";
   const save = updateReportSections.bind(null, report.id);
   const submit = submitReportAction.bind(null, report.id);
   const approve = approveReportAction.bind(null, report.id);
-  const returnWithNotes = returnReportAction.bind(null, report.id);
+  const reject = returnReportAction.bind(null, report.id);
+  const regenerate = regenerateReportAction.bind(null, report.id);
+
+  // Pré-laudo do aprovador: monta o layout real do laudo com feedback embutido.
+  const preLaudo = approverView && !approved;
+  const printModel = preLaudo
+    ? await buildReportPrintModel(report.id, { showAllCharts: true })
+    : null;
+  const doctorName = user.email
+    ? ((await prisma.user.findUnique({ where: { email: user.email } }))?.name ??
+      user.name)
+    : user.name;
+
+  // Frases pré-definidas por tópico, para o revisor sugerir uma alternativa.
+  const phraseOptions: Record<string, Array<{ code: string; text: string }>> = {};
+  if (preLaudo) {
+    const activePhrases = await prisma.reportPhrase.findMany({
+      where: { active: true },
+      select: { code: true, category: true, text: true },
+    });
+    for (const topic of REPORT_TOPICS) {
+      const category = SECTION_CATEGORY[topic.key];
+      phraseOptions[topic.key] = activePhrases
+        .filter(
+          (phrase) =>
+            phrase.category === category &&
+            // Sem placeholders numéricos: seguras para inserir como estão.
+            !/\{[a-zA-Z]+\}/.test(phrase.text),
+        )
+        .map((phrase) => ({ code: phrase.code, text: phrase.text }));
+    }
+  }
 
   return (
     <div className="max-w-4xl">
@@ -43,39 +96,50 @@ export default async function ReportReviewPage({
       ) : null}
       {pendingApproval ? (
         <div className="mb-4 rounded-md border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-900">
-          AGUARDANDO APROVAÇÃO
+          {approverView
+            ? "PRÉ-LAUDO — AGUARDANDO SUA APROVAÇÃO"
+            : "AGUARDANDO APROVAÇÃO"}
         </div>
       ) : null}
       {changesRequested ? (
         <div className="mb-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
-          <p className="font-semibold">DEVOLVIDO COM PENDÊNCIAS</p>
-          {report.reviewNotes ? (
-            <p className="mt-1 whitespace-pre-wrap">{report.reviewNotes}</p>
-          ) : null}
+          <p className="font-semibold">REPROVADO — CORRIGIR PENDÊNCIAS</p>
+          <p className="mt-1 text-xs">
+            Veja o feedback em cada tópico abaixo e reenvie para aprovação.
+          </p>
         </div>
       ) : null}
+
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Revisão do laudo</h1>
+          <h1 className="text-2xl font-semibold">
+            {approverView && !approved ? "Pré-laudo" : "Revisão do laudo"}
+          </h1>
           <p className="mt-1 text-sm text-slate-500">
             {report.patient.name} · exame em {formatDate(report.examDate)}
           </p>
         </div>
-        {approved ? (
-          <Link
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white"
-            href={`/reports/${report.id}/print`}
-          >
-            Imprimir laudo
-          </Link>
-        ) : approverView ? (
-          <Link
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white"
-            href={`/reports/${report.id}/print`}
-          >
-            Ver laudo e gráficos
-          </Link>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {isDev && !approved ? (
+            <form action={regenerate}>
+              <button
+                className="rounded-md border border-dashed border-fuchsia-400 px-3 py-2 text-sm text-fuchsia-700"
+                title="Somente em desenvolvimento: refaz a seleção de frases pela IA"
+                type="submit"
+              >
+                Reprocessar pela IA (dev)
+              </button>
+            </form>
+          ) : null}
+          {approved || approverView ? (
+            <Link
+              className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white"
+              href={`/reports/${report.id}/print`}
+            >
+              {approved ? "Imprimir laudo" : "Ver laudo e gráficos"}
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5 text-sm">
@@ -83,160 +147,33 @@ export default async function ReportReviewPage({
         <p className="mt-2">Nome: {report.patient.name}</p>
         <p>Nascimento: {formatDate(report.patient.birthDate)}</p>
         <p>Sexo: {report.patient.gender}</p>
+        <p className="mt-2 text-slate-500">
+          Médico assistente: {report.assistantDoctorName ?? "—"}
+        </p>
       </section>
 
-      <form action={save} className="mt-4 space-y-4">
-        <label className="block rounded-lg border border-slate-200 bg-white p-5 text-sm">
-          <span className="font-semibold">Médico assistente</span>
-          <input
-            className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2"
-            defaultValue={report.assistantDoctorName ?? ""}
-            disabled={!canEdit}
-            name="assistantDoctorName"
-            required={canEdit}
-          />
-        </label>
-        <fieldset className="space-y-2 rounded-lg border border-slate-200 bg-white p-5 text-sm">
-          <legend className="px-1 font-semibold">Gráficos no laudo</legend>
-          <p className="text-xs text-slate-500">
-            Escolha quais páginas de gráfico entram na impressão.
-          </p>
-          <label className="flex items-center gap-2">
-            <input
-              defaultChecked={report.includeTrendChart}
-              disabled={!canEdit}
-              name="includeTrendChart"
-              type="checkbox"
-            />
-            Tendência (BP vs Tempo)
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              defaultChecked={report.includeHistogramChart}
-              disabled={!canEdit}
-              name="includeHistogramChart"
-              type="checkbox"
-            />
-            Histograma
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              defaultChecked={report.includePieChart}
-              disabled={!canEdit}
-              name="includePieChart"
-              type="checkbox"
-            />
-            Gráfico de pizza
-          </label>
-        </fieldset>
-        {(
-          [
-            ["medications", "Medicações atuais", report.generatedMedications],
-            [
-              "technicalComments",
-              "Comentários sobre o desempenho técnico",
-              report.generatedTechnicalComments,
-            ],
-            [
-              "averagePressure",
-              "Médias pressóricas",
-              report.generatedResults,
-            ],
-            [
-              "pressureLoad",
-              "Cargas pressóricas",
-              report.generatedPressureLoad,
-            ],
-            [
-              "pressurePeaks",
-              "Picos pressóricos",
-              report.generatedPressurePeaks,
-            ],
-            [
-              "nightDipping",
-              "Descenso pressórico no sono",
-              report.generatedNightDipping,
-            ],
-            [
-              "specialSituations",
-              "Situações especiais",
-              report.generatedSpecialSituations,
-            ],
-            [
-              "generalConsiderations",
-              "Considerações gerais",
-              report.generatedGeneralConsiderations,
-            ],
-            ["conclusion", "Interpretação dos resultados", report.generatedConclusion],
-          ] as const
-        ).map(([name, label, value]) => (
-          <label className="block rounded-lg border border-slate-200 bg-white p-5 text-sm" key={name}>
-            <span className="font-semibold">{label}</span>
-            <textarea
-              className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2"
-              defaultValue={value ?? ""}
-              name={name}
-              readOnly={!canEdit}
-              rows={4}
-            />
-          </label>
-        ))}
-        {canEdit ? (
-          <div className="flex gap-3">
-            <button className="rounded-md border border-slate-300 px-4 py-2" type="submit">
-              Salvar edição
-            </button>
-          </div>
-        ) : null}
-      </form>
-
-      {!approved && !pendingApproval && canEdit ? (
-        <form action={submit} className="mt-4">
-          <button className="rounded-md bg-sky-700 px-4 py-2 text-white" type="submit">
-            Enviar para aprovação
-          </button>
-        </form>
-      ) : null}
-
-      {approverView && !approved ? (
-        <div className="mt-6 space-y-4 rounded-lg border border-slate-200 bg-white p-5">
-          <h2 className="font-semibold">Aprovação</h2>
-          <p className="text-sm text-slate-600">
-            Antes de aprovar, revise o laudo completo — tendência, histograma e pizza
-            ficam em{" "}
-            <Link
-              className="font-medium text-teal-700 underline"
-              href={`/reports/${report.id}/print`}
-            >
-              Ver laudo e gráficos
-            </Link>
-            .
-          </p>
-          <form action={approve}>
-            <button className="rounded-md bg-teal-700 px-4 py-2 text-white" type="submit">
-              Aprovar laudo
-            </button>
-          </form>
-          <form action={returnWithNotes} className="space-y-2">
-            <label className="block text-sm">
-              <span className="font-semibold">Devolver com pendências</span>
-              <textarea
-                className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2"
-                name="reviewNotes"
-                placeholder="Descreva o que precisa ser corrigido"
-                required
-                rows={3}
-              />
-            </label>
-            <button
-              className="rounded-md border border-red-300 px-4 py-2 text-red-700"
-              type="submit"
-            >
-              Devolver para correção
-            </button>
-          </form>
-        </div>
-      ) : null}
+      {preLaudo ? (
+        <ApproverPreLaudo
+          approve={approve}
+          doctorName={doctorName}
+          feedbackByTopic={topicFeedback}
+          phraseOptions={phraseOptions}
+          printModel={printModel}
+          reject={reject}
+        />
+      ) : (
+        <OperatorForm
+          topics={topics}
+          canEdit={canEdit}
+          changesRequested={changesRequested}
+          includeTrendChart={report.includeTrendChart}
+          includeHistogramChart={report.includeHistogramChart}
+          includePieChart={report.includePieChart}
+          assistantDoctorName={report.assistantDoctorName}
+          save={save}
+          submit={submit}
+        />
+      )}
 
       <section className="mt-10">
         <h2 className="font-semibold">Auditoria</h2>
@@ -250,5 +187,256 @@ export default async function ReportReviewPage({
         </ul>
       </section>
     </div>
+  );
+}
+
+type TopicView = {
+  key: string;
+  label: string;
+  value: string;
+  feedback?: string;
+};
+
+/**
+ * Pré-laudo do aprovador: renderiza o layout final do laudo com cada frase como
+ * componente e o feedback por tópico embutido, como se estivesse montando o
+ * laudo. Aprovar ou reprovar (com pendências por tópico).
+ */
+function ApproverPreLaudo({
+  printModel,
+  doctorName,
+  feedbackByTopic,
+  phraseOptions,
+  approve,
+  reject,
+}: {
+  printModel: Awaited<ReturnType<typeof buildReportPrintModel>>;
+  doctorName?: string | null;
+  feedbackByTopic: Partial<Record<string, string>>;
+  phraseOptions: Record<string, Array<{ code: string; text: string }>>;
+  approve: () => void;
+  reject: (formData: FormData) => void;
+}) {
+  if (!printModel) {
+    return (
+      <p className="mt-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        Não foi possível montar a pré-visualização do laudo.
+      </p>
+    );
+  }
+
+  const { report } = printModel;
+
+  return (
+    <>
+      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 text-sm">
+        <p className="text-slate-600">
+          Revise o laudo abaixo. Cada frase aparece como um componente do laudo.
+          Para reprovar, deixe o feedback nos tópicos que precisam de correção.
+        </p>
+      </div>
+
+      {/* Layout real do laudo (como sairá na impressão), com feedback embutido. */}
+      <section className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-slate-100 p-4">
+        <MapaPrintDocument
+          assistantDoctorName={report.assistantDoctorName}
+          awpPatient={printModel.awpPatient}
+          chartPoints={printModel.chartPoints}
+          doctorName={doctorName}
+          examDate={report.examDate}
+          guidelineNote={printModel.guidelineNote}
+          includeHistogramChart={printModel.includeHistogramChart}
+          includePieChart={printModel.includePieChart}
+          includeTrendChart={printModel.includeTrendChart}
+          measurements={printModel.measurements}
+          narrative={printModel.narrative}
+          officeDiastolic={report.officeDiastolicPressure}
+          officeHeartRate={report.officeHeartRate}
+          officeSystolic={report.officeSystolicPressure}
+          patient={report.patient}
+          review={{
+            formId: "reject-form",
+            labels: TOPIC_LABELS,
+            feedbackByTopic,
+            phraseOptions,
+          }}
+          sleepWindow={printModel.sleepWindow}
+          stats={printModel.stats}
+          thresholds={printModel.thresholds}
+        />
+      </section>
+
+      <form
+        action={reject}
+        className="mt-4 rounded-lg border border-slate-200 bg-white p-5 text-sm"
+        id="reject-form"
+      >
+        <label className="block">
+          <span className="font-semibold">Observação geral (opcional)</span>
+          <textarea
+            className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2"
+            name="reviewNotes"
+            rows={2}
+          />
+        </label>
+        <p className="mt-2 text-xs text-slate-500">
+          Para reprovar, preencha o feedback em pelo menos um tópico (acima, no
+          layout) ou esta observação geral.
+        </p>
+      </form>
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        <form action={approve}>
+          <button
+            className="rounded-md bg-teal-700 px-5 py-2 text-white"
+            type="submit"
+          >
+            Aprovar laudo
+          </button>
+        </form>
+        <button
+          className="rounded-md border border-red-300 px-5 py-2 font-medium text-red-700"
+          form="reject-form"
+          type="submit"
+        >
+          Reprovar com pendências
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** Operador: edita os tópicos e envia para aprovação; vê pendências por tópico. */
+function OperatorForm({
+  topics,
+  canEdit,
+  changesRequested,
+  includeTrendChart,
+  includeHistogramChart,
+  includePieChart,
+  assistantDoctorName,
+  save,
+  submit,
+}: {
+  topics: TopicView[];
+  canEdit: boolean;
+  changesRequested: boolean;
+  includeTrendChart: boolean;
+  includeHistogramChart: boolean;
+  includePieChart: boolean;
+  assistantDoctorName: string | null;
+  save: (formData: FormData) => void;
+  submit: () => void;
+}) {
+  const considerations = topics.find(
+    (item) => item.key === "generalConsiderations",
+  )?.value;
+  const conclusion = topics.find((item) => item.key === "conclusion")?.value;
+  const interpretationValue =
+    interpretationDisplayText(considerations, conclusion) ||
+    conclusion ||
+    EMPTY_REPORT_TEXT;
+
+  return (
+    <>
+      <form action={save} className="mt-4 space-y-4">
+        <label className="block rounded-lg border border-slate-200 bg-white p-5 text-sm">
+          <span className="font-semibold">Médico assistente</span>
+          <input
+            className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2"
+            defaultValue={assistantDoctorName ?? ""}
+            disabled={!canEdit}
+            name="assistantDoctorName"
+            required={canEdit}
+          />
+        </label>
+        <fieldset className="space-y-2 rounded-lg border border-slate-200 bg-white p-5 text-sm">
+          <legend className="px-1 font-semibold">Gráficos no laudo</legend>
+          <p className="text-xs text-slate-500">
+            Escolha quais páginas de gráfico entram na impressão.
+          </p>
+          <label className="flex items-center gap-2">
+            <input
+              defaultChecked={includeTrendChart}
+              disabled={!canEdit}
+              name="includeTrendChart"
+              type="checkbox"
+            />
+            Tendência (BP vs Tempo)
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              defaultChecked={includeHistogramChart}
+              disabled={!canEdit}
+              name="includeHistogramChart"
+              type="checkbox"
+            />
+            Histograma
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              defaultChecked={includePieChart}
+              disabled={!canEdit}
+              name="includePieChart"
+              type="checkbox"
+            />
+            Gráfico de pizza
+          </label>
+        </fieldset>
+        {topics.map((topic) => {
+          const emptySpecial =
+            topic.key === "specialSituations" &&
+            (!topic.value.trim() || topic.value.trim() === EMPTY_REPORT_TEXT);
+          const hideConsiderations = topic.key === "generalConsiderations";
+          if ((emptySpecial || hideConsiderations) && !topic.feedback) {
+            return (
+              <input
+                key={topic.key}
+                name={topic.key}
+                type="hidden"
+                value={topic.value}
+              />
+            );
+          }
+          return (
+            <label
+              className="block rounded-lg border border-slate-200 bg-white p-5 text-sm"
+              key={topic.key}
+            >
+              <span className="font-semibold">{topic.label}</span>
+              {changesRequested && topic.feedback ? (
+                <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                  Pendência: {topic.feedback}
+                </p>
+              ) : null}
+              <textarea
+                className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2"
+                defaultValue={
+                  topic.key === "conclusion" ? interpretationValue : topic.value
+                }
+                name={topic.key}
+                readOnly={!canEdit}
+                rows={4}
+              />
+            </label>
+          );
+        })}
+        {canEdit ? (
+          <div className="flex gap-3">
+            <button className="rounded-md border border-slate-300 px-4 py-2" type="submit">
+              Salvar edição
+            </button>
+          </div>
+        ) : null}
+      </form>
+
+      {canEdit ? (
+        <form action={submit} className="mt-4">
+          <button className="rounded-md bg-sky-700 px-4 py-2 text-white" type="submit">
+            Enviar para aprovação
+          </button>
+        </form>
+      ) : null}
+    </>
   );
 }

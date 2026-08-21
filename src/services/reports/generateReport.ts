@@ -5,11 +5,18 @@ import { DeterministicReportBuilder } from "@/domain/mapa/services/Deterministic
 import { computeValidMeasurementsPercentage } from "@/domain/mapa/rules/technicalQuality";
 import type { MapaClinicalData, SpecialSituationCode } from "@/domain/mapa/types/clinical";
 import type { StructuredReportSections } from "@/domain/mapa/types/report";
-import { AiReportService, AI_PROMPT_VERSION, pickRewritableSections } from "@/services/ai/AiReportService";
-import { AiReportValidator } from "@/services/ai/AiReportValidator";
+import {
+  AiPhraseSelectionService,
+  AI_SELECTION_PROMPT_VERSION,
+  buildCandidates,
+  mergeSelection,
+  type SelectionByCategory,
+} from "@/services/ai/AiPhraseSelectionService";
 import { estimateCost } from "@/services/ai/pricing";
 import { logReportEvent } from "@/services/audit/log";
 import { getClinicSettings } from "@/services/settings/clinicSettings";
+import { deserializeParseResult } from "@/services/imports/awpParseResultCodec";
+import { formatTime } from "@/lib/dates";
 
 function toClinical(report: {
   currentMedications: string;
@@ -80,9 +87,103 @@ function sectionsToDb(sections: StructuredReportSections) {
   };
 }
 
-export async function generateReportContent(reportId: string) {
+/** Resumo clínico compacto para orientar a seleção de frases pela IA. */
+function buildClinicalContext(
+  report: Parameters<typeof toClinical>[0],
+  percentage: number | null,
+): string {
+  const parts: string[] = [];
+  const add = (label: string, value: unknown) => {
+    if (value === null || value === undefined || value === "") return;
+    parts.push(`${label}: ${value}`);
+  };
+
+  add("Válidas %", percentage != null ? Math.round(percentage) : null);
+  add("Médias 24h", numberPair(report.avg24hSystolic, report.avg24hDiastolic));
+  add("Vigília", numberPair(report.awakeSystolic, report.awakeDiastolic));
+  add("Sono", numberPair(report.sleepSystolic, report.sleepDiastolic));
+  add(
+    "Cargas vigília S/D",
+    numberPair(report.awakeSystolicLoad, report.awakeDiastolicLoad),
+  );
+  add(
+    "Cargas sono S/D",
+    numberPair(report.sleepSystolicLoad, report.sleepDiastolicLoad),
+  );
+  add(
+    "Descenso S/D",
+    numberPair(report.systolicNightDipping, report.diastolicNightDipping),
+  );
+  add(
+    "PA consultório",
+    numberPair(report.officeSystolicPressure, report.officeDiastolicPressure),
+  );
+
+  return parts.join("; ") || "Sem dados numéricos disponíveis.";
+}
+
+function numberPair(a: number | null, b: number | null): string | null {
+  if (a == null && b == null) return null;
+  return `${a ?? "—"}/${b ?? "—"}`;
+}
+
+function isFilledSection(text?: string | null): boolean {
+  const value = text?.trim();
+  return Boolean(value) && value !== "Não informado.";
+}
+
+/**
+ * Relaciona o pico pressórico ao horário do maior valor medido e ao que o
+ * paciente relatou (observação/atividade) naquele momento, quando houver.
+ */
+function buildMeasuredPeakDetail(
+  measurements: Array<{
+    measuredAt: Date;
+    systolic: number;
+    diastolic: number;
+    valid: boolean;
+    observation?: string | null;
+  }>,
+): string {
+  const valid = measurements.filter((m) => m.valid);
+  if (valid.length === 0) return "";
+
+  const peak = valid.reduce((max, item) =>
+    item.systolic > max.systolic ? item : max,
+  );
+  const time = formatTime(peak.measuredAt);
+  const base = `Maior valor pressórico registrado: ${peak.systolic}/${peak.diastolic} mmHg às ${time}`;
+  const observation = peak.observation?.trim();
+  return observation
+    ? `${base}, durante relato de "${observation}".`
+    : `${base}.`;
+}
+
+/**
+ * A IA só pode reproduzir números que estejam nas frases pré-definidas.
+ * Descartamos opiniões livres que contenham dígitos para não introduzir valores
+ * inventados no laudo.
+ */
+function sanitizeSelection(selection: SelectionByCategory): SelectionByCategory {
+  const safe: SelectionByCategory = {};
+  for (const [category, topic] of Object.entries(selection) as Array<
+    [keyof SelectionByCategory, SelectionByCategory[keyof SelectionByCategory]]
+  >) {
+    if (!topic) continue;
+    const opinion =
+      topic.opinion && /\d/.test(topic.opinion) ? undefined : topic.opinion;
+    safe[category] = { codes: topic.codes ?? [], opinion };
+  }
+  return safe;
+}
+
+export async function generateReportContent(
+  reportId: string,
+  options: { keepStatus?: boolean } = {},
+) {
   const report = await prisma.mapaReport.findUniqueOrThrow({
     where: { id: reportId },
+    include: { sourceFile: true },
   });
 
   const phrases = await prisma.reportPhrase.findMany({
@@ -108,54 +209,51 @@ export async function generateReportContent(reportId: string) {
   let sections = draft;
   let usedAiFallback = true;
 
-  const ai = new AiReportService();
-  const hasRewritable = Object.keys(pickRewritableSections(draft)).length > 0;
+  // A IA escolhe, por tópico, as frases pré-definidas que melhor se enquadram
+  // (e só opina qualitativamente se nenhuma servir). Números nunca vêm da IA:
+  // saem sempre das frases já resolvidas pelo motor determinístico.
+  const candidates = buildCandidates(resolved, phrases);
+  const context = buildClinicalContext(report, percentage);
+  const selector = new AiPhraseSelectionService();
+  const hasCandidates = Object.keys(candidates).length > 0;
 
-  if (ai.isConfigured() && hasRewritable) {
+  if (selector.isConfigured() && hasCandidates) {
     await logReportEvent({
       reportId,
       event: "AI_GENERATION_STARTED",
       model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-      promptVersion: AI_PROMPT_VERSION,
+      promptVersion: AI_SELECTION_PROMPT_VERSION,
     });
     try {
-      const rewritten = await ai.rewrite(draft);
-      const validator = new AiReportValidator();
-      const check = validator.validate(
-        draft,
-        rewritten.sections,
-        report.currentMedications || draft.medications,
-      );
-      if (!check.ok) {
-        await logReportEvent({
-          reportId,
-          event: "AI_GENERATION_REJECTED",
-          model: rewritten.model,
-          promptVersion: AI_PROMPT_VERSION,
-        });
+      const outcome = await selector.select(candidates, context);
+      if (outcome.skipped) {
         await logReportEvent({ reportId, event: "FALLBACK_USED" });
       } else {
-        sections = rewritten.sections;
+        sections = mergeSelection(
+          candidates,
+          sanitizeSelection(outcome.selection),
+          draft,
+        );
         usedAiFallback = false;
         await logReportEvent({
           reportId,
           event: "AI_GENERATION_COMPLETED",
-          model: rewritten.model,
-          promptVersion: AI_PROMPT_VERSION,
+          model: outcome.model,
+          promptVersion: AI_SELECTION_PROMPT_VERSION,
         });
         const costs = estimateCost(
-          rewritten.model,
-          rewritten.inputTokens,
-          rewritten.outputTokens,
+          outcome.model,
+          outcome.inputTokens,
+          outcome.outputTokens,
         );
         await prisma.aiUsage.create({
           data: {
             reportId,
             provider: "openai",
-            model: rewritten.model,
-            inputTokens: rewritten.inputTokens,
-            outputTokens: rewritten.outputTokens,
-            totalTokens: rewritten.totalTokens,
+            model: outcome.model,
+            inputTokens: outcome.inputTokens,
+            outputTokens: outcome.outputTokens,
+            totalTokens: outcome.totalTokens,
             ...costs,
           },
         });
@@ -167,11 +265,30 @@ export async function generateReportContent(reportId: string) {
     await logReportEvent({ reportId, event: "FALLBACK_USED" });
   }
 
+  // Quando há picos e arquivo AWP, relaciona o pico ao horário do maior valor
+  // medido e à atividade relatada (observação da medição) naquele momento.
+  if (isFilledSection(sections.pressurePeaks) && report.sourceFile?.payloadJson) {
+    try {
+      const parsed = deserializeParseResult(report.sourceFile.payloadJson);
+      const detail = buildMeasuredPeakDetail(parsed.measurements);
+      if (detail && !sections.pressurePeaks.includes(detail)) {
+        sections = {
+          ...sections,
+          pressurePeaks: `${sections.pressurePeaks} ${detail}`.trim(),
+        };
+      }
+    } catch {
+      // Sem detalhe do pico se o payload não puder ser lido.
+    }
+  }
+
   return prisma.mapaReport.update({
     where: { id: reportId },
     data: {
       ...sectionsToDb(sections),
-      status: "GENERATED",
+      // Reprocesso (dev) mantém o status atual para não tirar o laudo da mesa
+      // de aprovação; a geração normal marca como GENERATED.
+      ...(options.keepStatus ? {} : { status: "GENERATED" }),
       usedAiFallback,
       validMeasurementsPercentage:
         report.totalMeasurements && report.validMeasurements != null

@@ -4,7 +4,13 @@ import {
   fromWallClockIso,
   toWallClockIso,
 } from "@/domain/mapa/import/awp/decoders/dateTime";
-import { formatDateTime, fromStoredDateTime, toStoredDateTime } from "@/lib/dates";
+import {
+  examDayRange,
+  formatDateTime,
+  fromStoredDateTime,
+  normalizeExamDate,
+  toStoredDateTime,
+} from "@/lib/dates";
 
 describe("AWP wall-clock timezone", () => {
   it("serializa sem Z e formata 17/08/2026 08:35", () => {
@@ -43,6 +49,26 @@ describe("AWP wall-clock timezone", () => {
     expect(revived.getUTCHours()).toBe(8);
     expect(revived.getUTCMinutes()).toBe(35);
     expect(formatDateTime(revived)).toBe("17/08/2026, 08:35:00");
+  });
+
+  it("paciente + dia civil identificam o mesmo exame mesmo com horário diferente", () => {
+    const morning = new Date(Date.UTC(2026, 6, 27, 8, 0, 0));
+    const evening = new Date(Date.UTC(2026, 6, 27, 19, 1, 0));
+    const formDate = new Date("2026-07-27");
+    expect(normalizeExamDate(morning).toISOString()).toBe(
+      "2026-07-27T00:00:00.000Z",
+    );
+    expect(normalizeExamDate(evening).getTime()).toBe(
+      normalizeExamDate(morning).getTime(),
+    );
+    expect(normalizeExamDate(formDate).getTime()).toBe(
+      normalizeExamDate(morning).getTime(),
+    );
+    const { start, endExclusive } = examDayRange(evening);
+    expect(morning >= start && morning < endExclusive).toBe(true);
+    expect(evening >= start && evening < endExclusive).toBe(true);
+    const nextDay = new Date(Date.UTC(2026, 6, 28, 0, 0, 0));
+    expect(nextDay >= start && nextDay < endExclusive).toBe(false);
   });
 
   it("formata string ISO serializada pelo RSC sem deslocar para 11:35", () => {
