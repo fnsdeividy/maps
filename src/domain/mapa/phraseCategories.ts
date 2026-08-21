@@ -9,8 +9,7 @@ export const PHRASE_CATEGORIES: Array<{ value: PhraseCategory; label: string }> 
   { value: "PRESSURE_PEAK", label: "Picos pressóricos" },
   { value: "NIGHT_DIPPING", label: "Descenso noturno" },
   { value: "SPECIAL_SITUATION", label: "Situações especiais" },
-  { value: "GENERAL_CONSIDERATION", label: "Considerações clínicas" },
-  { value: "CONCLUSION", label: "Conclusão / Interpretação" },
+  { value: "CONCLUSION", label: "Interpretação dos resultados" },
 ];
 
 export const PHRASE_CATEGORY_LABEL: Record<PhraseCategory, string> =

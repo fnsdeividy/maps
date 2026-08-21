@@ -20,7 +20,6 @@ describe("pickRewritableSections", () => {
     expect(picked).toEqual({
       technicalComments: "Qualidade técnica adequada.",
       averagePressure: "Média 24h 127/70 mmHg.",
-      generalConsiderations: "Compatível com Normotensão Verdadeira.",
     });
     expect(picked).not.toHaveProperty("medications");
     expect(picked).not.toHaveProperty("conclusion");

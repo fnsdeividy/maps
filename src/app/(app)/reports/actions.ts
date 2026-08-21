@@ -22,6 +22,8 @@ import {
   PatientResolutionError,
   resolvePatientFromForm,
 } from "@/services/patients/resolvePatientFromForm";
+import { CertificateError } from "@/services/certificates/pkcs12";
+import { signReportWithDoctorCertificate } from "@/services/certificates/signReport";
 import { reportRepository } from "@/repositories/reportRepository";
 import { normalizeExamDate } from "@/lib/dates";
 
@@ -236,15 +238,40 @@ export async function submitReportAction(reportId: string) {
   revalidatePath("/dashboard");
 }
 
-/** Só o aprovador aprova. Grava edições in-loco se o formulário as trouxer. */
+/** Só o aprovador aprova. Assina com o certificado A1 quando cadastrado. */
 export async function approveReportAction(reportId: string, formData?: FormData) {
-  await requireApprover();
+  const user = await requireApprover();
   if (formData) {
     const parsed = sectionsFromFormData(formData);
     if (Object.keys(parsed).length > 0) {
       await saveEditedSections(reportId, parsed);
     }
   }
+
+  const doctor = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { certificatePfx: true },
+  });
+  if (doctor?.certificatePfx && doctor.certificatePfx.length > 0) {
+    const password = String(formData?.get("certificatePassword") ?? "");
+    if (!password) {
+      redirect(`/reports/${reportId}?error=informe-senha-certificado`);
+    }
+    try {
+      await signReportWithDoctorCertificate({
+        reportId,
+        userId: user.id,
+        password,
+      });
+    } catch (error) {
+      const message =
+        error instanceof CertificateError
+          ? error.message
+          : "Não foi possível assinar o laudo com o certificado.";
+      redirect(`/reports/${reportId}?error=${encodeURIComponent(message)}`);
+    }
+  }
+
   const report = await approveReport(reportId);
   const patient = await prisma.patient.findUnique({
     where: { id: report.patientId },
@@ -256,6 +283,7 @@ export async function approveReportAction(reportId: string, formData?: FormData)
     message: `Laudo de ${patient?.name ?? "paciente"} foi aprovado.`,
   });
   revalidatePath(`/reports/${reportId}`);
+  revalidatePath(`/reports/${reportId}/print`);
   revalidatePath("/reports");
   revalidatePath("/dashboard");
 }

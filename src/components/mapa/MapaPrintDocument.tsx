@@ -290,6 +290,7 @@ export function MapaPrintDocument({
   officeHeartRate,
   doctorName,
   doctorRqe,
+  digitalSignature = null,
   assistantDoctorName,
   thresholds,
   stats,
@@ -313,6 +314,11 @@ export function MapaPrintDocument({
   officeHeartRate?: number | null;
   doctorName?: string | null;
   doctorRqe?: string | null;
+  digitalSignature?: {
+    signedAt: Date;
+    signerCommonName: string;
+    thumbprint: string;
+  } | null;
   assistantDoctorName?: string | null;
   thresholds: MapaThresholds;
   stats: MapaPrintStatistics | null;
@@ -883,6 +889,19 @@ export function MapaPrintDocument({
           <p className="font-semibold">{dash(doctorName)}</p>
           <p>Cardiologista</p>
           <p>RQE: {doctorRqe ?? "37228"}</p>
+          {digitalSignature ? (
+            <div className="mx-auto mt-4 max-w-md rounded-md border border-slate-400 bg-slate-50 px-3 py-2 text-left text-[10px] leading-snug">
+              <p className="font-semibold uppercase tracking-wide">
+                Assinado digitalmente
+              </p>
+              <p className="mt-1">{digitalSignature.signerCommonName}</p>
+              <p>Em {digitalSignature.signedAt.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</p>
+              <p className="break-all text-slate-600">
+                Certificado SHA-256: {digitalSignature.thumbprint.slice(0, 32)}
+                …
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <p className="mt-6 text-center text-[10px] text-slate-600">

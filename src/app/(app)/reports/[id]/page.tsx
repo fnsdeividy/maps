@@ -26,10 +26,13 @@ const TOPIC_LABELS: Record<string, string> = Object.fromEntries(
 
 export default async function ReportReviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { id } = await params;
+  const { error } = await searchParams;
   const user = await requireUser();
   const approverView = isApprover(user.role);
   const [report, sourceFile] = await Promise.all([
@@ -56,11 +59,22 @@ export default async function ReportReviewPage({
   const importHref =
     !approved && importFileId ? `/reports/import/${importFileId}` : null;
 
-  const topics = REPORT_TOPICS.map((topic) => ({
-    ...topic,
-    value: (report[topic.field as keyof typeof report] as string | null) ?? "",
-    feedback: topicFeedback[topic.key],
-  }));
+  const topics = REPORT_TOPICS.map((topic) => {
+    const raw =
+      (report[topic.field as keyof typeof report] as string | null) ?? "";
+    const value =
+      topic.key === "conclusion"
+        ? interpretationDisplayText(
+            report.generatedGeneralConsiderations,
+            raw,
+          ) || raw
+        : raw;
+    return {
+      ...topic,
+      value,
+      feedback: topicFeedback[topic.key],
+    };
+  });
 
   // Operador não altera laudo que está na mesa do aprovador nem laudo aprovado.
   const canEdit = !approved && !approverView && !pendingApproval;
@@ -78,6 +92,20 @@ export default async function ReportReviewPage({
   const signingDoctor = await getSigningDoctor();
   const doctorName = signingDoctor.name;
   const doctorRqe = signingDoctor.rqe;
+  const approverCertificate = approverView
+    ? await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { certificateCommonName: true, certificateThumbprint: true },
+      })
+    : null;
+  const hasCertificate = Boolean(approverCertificate?.certificateThumbprint);
+
+  const signError =
+    error === "informe-senha-certificado"
+      ? "Informe a senha do certificado digital para assinar e aprovar o laudo."
+      : error
+        ? decodeURIComponent(error)
+        : null;
 
   // Frases pré-definidas por tópico, para o revisor sugerir uma alternativa.
   const phraseOptions: Record<string, Array<{ code: string; text: string }>> = {};
@@ -89,12 +117,17 @@ export default async function ReportReviewPage({
     for (const topic of REPORT_TOPICS) {
       const category = SECTION_CATEGORY[topic.key];
       phraseOptions[topic.key] = activePhrases
-        .filter(
-          (phrase) =>
-            phrase.category === category &&
-            // Sem placeholders numéricos: seguras para inserir como estão.
-            !/\{[a-zA-Z]+\}/.test(phrase.text),
-        )
+        .filter((phrase) => {
+          const matchesTopic =
+            phrase.category === category ||
+            (topic.key === "conclusion" &&
+              phrase.category === "GENERAL_CONSIDERATION");
+          return (
+            matchesTopic &&
+            phrase.code !== "GUIDELINE_FOOTER" &&
+            !/\{[a-zA-Z]+\}/.test(phrase.text)
+          );
+        })
         .map((phrase) => ({ code: phrase.code, text: phrase.text }));
     }
   }
@@ -121,6 +154,11 @@ export default async function ReportReviewPage({
             precisar alterar medições ou dados clínicos do exame, volte à
             conferência.
           </p>
+        </div>
+      ) : null}
+      {signError ? (
+        <div className="mb-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {signError}
         </div>
       ) : null}
 
@@ -197,9 +235,13 @@ export default async function ReportReviewPage({
       {preLaudo ? (
         <ApproverPreLaudo
           approve={approve}
+          certificateCommonName={
+            approverCertificate?.certificateCommonName ?? null
+          }
           doctorName={doctorName}
           doctorRqe={doctorRqe}
           feedbackByTopic={topicFeedback}
+          hasCertificate={hasCertificate}
           importHref={importHref}
           phraseOptions={phraseOptions}
           printModel={printModel}
@@ -258,6 +300,8 @@ function ApproverPreLaudo({
   reject,
   save,
   importHref,
+  hasCertificate,
+  certificateCommonName,
 }: {
   printModel: Awaited<ReturnType<typeof buildReportPrintModel>>;
   doctorName?: string | null;
@@ -268,6 +312,8 @@ function ApproverPreLaudo({
   reject: (formData: FormData) => void;
   save: (formData: FormData) => void;
   importHref: string | null;
+  hasCertificate: boolean;
+  certificateCommonName: string | null;
 }) {
   if (!printModel) {
     return (
@@ -345,6 +391,33 @@ function ApproverPreLaudo({
         </p>
       </form>
 
+      {hasCertificate ? (
+        <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5 text-sm">
+          <p className="font-semibold">Assinatura digital</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Certificado: {certificateCommonName}. A senha não é gravada.
+          </p>
+          <label className="mt-3 block">
+            <span className="text-slate-600">Senha do certificado</span>
+            <input
+              autoComplete="off"
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
+              form="approver-edit-form"
+              name="certificatePassword"
+              type="password"
+            />
+          </label>
+        </div>
+      ) : (
+        <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Cadastre seu certificado A1 em{" "}
+          <Link className="underline" href="/settings">
+            Configurações
+          </Link>{" "}
+          para assinar o laudo com ICP-Brasil ao aprovar.
+        </p>
+      )}
+
       <div className="mt-4 flex flex-wrap gap-3">
         {importHref ? (
           <Link
@@ -367,7 +440,7 @@ function ApproverPreLaudo({
           formAction={approve}
           type="submit"
         >
-          Aprovar laudo
+          {hasCertificate ? "Assinar e aprovar laudo" : "Aprovar laudo"}
         </button>
         <button
           className="rounded-md border border-red-300 px-5 py-2 font-medium text-red-700"
@@ -405,14 +478,8 @@ function OperatorForm({
   save: (formData: FormData) => void;
   submit: () => void;
 }) {
-  const considerations = topics.find(
-    (item) => item.key === "generalConsiderations",
-  )?.value;
   const conclusion = topics.find((item) => item.key === "conclusion")?.value;
-  const interpretationValue =
-    interpretationDisplayText(considerations, conclusion) ||
-    conclusion ||
-    EMPTY_REPORT_TEXT;
+  const interpretationValue = conclusion || EMPTY_REPORT_TEXT;
 
   return (
     <>
@@ -464,8 +531,7 @@ function OperatorForm({
           const emptySpecial =
             topic.key === "specialSituations" &&
             (!topic.value.trim() || topic.value.trim() === EMPTY_REPORT_TEXT);
-          const hideConsiderations = topic.key === "generalConsiderations";
-          if ((emptySpecial || hideConsiderations) && !topic.feedback) {
+          if (emptySpecial && !topic.feedback) {
             return (
               <input
                 key={topic.key}

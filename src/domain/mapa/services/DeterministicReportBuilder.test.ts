@@ -40,9 +40,9 @@ describe("laudo determinístico sem OpenAI", () => {
     expect(sections.averagePressure).toContain("normal");
     expect(sections.pressureLoad).toContain("Vigília e no Sono normais");
     expect(sections.nightDipping).toContain("normais");
-    expect(sections.generalConsiderations).toContain("Normotensão Verdadeira");
     expect(sections.conclusion).toContain("Normotensão Arterial Verdadeira");
-    expect(sections.generalConsiderations).not.toContain(
+    expect(sections.generalConsiderations).toBe("Não informado.");
+    expect(sections.conclusion).not.toContain(
       "Diretriz Brasileira de Hipertensão Arterial",
     );
   });

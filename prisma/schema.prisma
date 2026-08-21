@@ -18,6 +18,14 @@ model User {
   role         String   @default("DOCTOR")
   /** Registro de Qualificação de Especialista, exibido na assinatura do laudo. */
   rqe          String?
+
+  /** PKCS#12 (.pfx/.p12) do certificado A1 — a senha nunca é gravada. */
+  certificatePfx        Bytes?
+  certificateCommonName String?
+  certificateIssuer     String?
+  certificateNotAfter   DateTime?
+  certificateThumbprint String?
+  certificateUploadedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -142,6 +150,12 @@ model MapaReport {
   /** Nome do médico assistente exibido na assinatura do laudo. */
   assistantDoctorName String?
   approvedAt     DateTime?
+  /** Assinatura digital ICP-Brasil (PKCS#7) do laudo aprovado. */
+  signedAt         DateTime?
+  signerCommonName String?
+  signerThumbprint String?
+  signatureHash    String?
+  signatureCms     String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

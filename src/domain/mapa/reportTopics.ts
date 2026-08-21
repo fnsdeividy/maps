@@ -38,11 +38,6 @@ export const REPORT_TOPICS = [
     field: "generatedSpecialSituations",
   },
   {
-    key: "generalConsiderations",
-    label: "Considerações clínicas",
-    field: "generatedGeneralConsiderations",
-  },
-  {
     key: "conclusion",
     label: "Interpretação dos resultados",
     field: "generatedConclusion",

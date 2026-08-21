@@ -313,40 +313,40 @@ export const REPORT_PHRASES: Array<{
     text: "Pressão Arterial sistólica e/ou diastólica, no consultório, elevada.",
   },
 
-  // Considerações clínicas
+  // Interpretação (antes: considerações clínicas)
   {
     code: "OFFICE_VS_MAPA_WHITE_COAT",
-    category: "GENERAL_CONSIDERATION",
+    category: "CONCLUSION",
     text: "Os valores das médias pressóricas 24horas do MAPA comparadas aos valores de consultório sugerem Hipertensão do Avental Branco.",
   },
   {
     code: "OFFICE_VS_MAPA_MASKED",
-    category: "GENERAL_CONSIDERATION",
+    category: "CONCLUSION",
     text: "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores do consultório sugerem Hipertensão Mascarada.",
   },
   {
     code: "OFFICE_VS_MAPA_NORMOTENSION",
-    category: "GENERAL_CONSIDERATION",
+    category: "CONCLUSION",
     text: "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Normotensão Verdadeira.",
   },
   {
     code: "OFFICE_VS_MAPA_SUSTAINED",
-    category: "GENERAL_CONSIDERATION",
+    category: "CONCLUSION",
     text: "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Sustentada.",
   },
   {
     code: "GENERAL_NAP_PHYSIOLOGIC",
-    category: "GENERAL_CONSIDERATION",
+    category: "CONCLUSION",
     text: "Observamos comportamento fisiológico da Pressão Arterial, relacionada ao período de sesta (sono durante o dia).",
   },
   {
     code: "GENERAL_HR_PHYSIOLOGIC",
-    category: "GENERAL_CONSIDERATION",
+    category: "CONCLUSION",
     text: "A variação das frequências cardíacas permaneceu dentro dos limites fisiológicos.",
   },
   {
     code: "GENERAL_CONSIDER_CV_MEDS",
-    category: "GENERAL_CONSIDERATION",
+    category: "CONCLUSION",
     text: "Considerar o uso de medicamentos de efeito cardiovascular.",
   },
   {

@@ -75,7 +75,7 @@ describe("buildCandidates", () => {
     expect(conclusionCodes).not.toContain("CONCLUSION_INACTIVE");
   });
 
-  it("inclui frases do catálogo sem placeholders nas considerações gerais", () => {
+  it("leva frases de considerações clínicas para a interpretação", () => {
     const withGeneral = [
       ...catalog,
       {
@@ -86,10 +86,8 @@ describe("buildCandidates", () => {
       },
     ];
     const candidates = buildCandidates(resolved, withGeneral);
-    const generalCodes = (candidates.GENERAL_CONSIDERATION ?? []).map(
-      (c) => c.code,
-    );
-    expect(generalCodes).toContain("GENERAL_HR_PHYSIOLOGIC");
+    const conclusionCodes = (candidates.CONCLUSION ?? []).map((c) => c.code);
+    expect(conclusionCodes).toContain("GENERAL_HR_PHYSIOLOGIC");
   });
 
   it("exclui frases do catálogo com placeholders numéricos", () => {
@@ -111,8 +109,8 @@ describe("mergeSelection", () => {
     CONCLUSION: [
       { code: "CONCLUSION_NORMOTENSION", text: "Normotensão." },
       { code: "CONCLUSION_SUSTAINED", text: "Hipertensão Sustentada." },
+      { code: "G1", text: "Considerar X." },
     ],
-    GENERAL_CONSIDERATION: [{ code: "G1", text: "Considerar X." }],
   };
 
   it("usa o texto das frases selecionadas", () => {
@@ -125,10 +123,10 @@ describe("mergeSelection", () => {
 
   it("usa a opinião quando não há códigos escolhidos", () => {
     const selection: SelectionByCategory = {
-      GENERAL_CONSIDERATION: { codes: [], opinion: "Acompanhamento clínico." },
+      CONCLUSION: { codes: [], opinion: "Acompanhamento clínico." },
     };
     const result = mergeSelection(candidates, selection, deterministic());
-    expect(result.generalConsiderations).toBe("Acompanhamento clínico.");
+    expect(result.conclusion).toBe("Acompanhamento clínico.");
   });
 
   it("mantém o determinístico quando a IA não escolhe nem opina", () => {
@@ -151,7 +149,7 @@ describe("parseSelection", () => {
       medications: { codes: ["IGNORED"] },
     });
     expect(selection.CONCLUSION?.codes).toEqual(["A"]);
-    expect(selection.GENERAL_CONSIDERATION?.codes).toEqual(["B"]);
+    expect(selection.GENERAL_CONSIDERATION).toBeUndefined();
     // Tópicos factuais (técnico) e medicações não são compostos pela IA.
     expect(selection.TECHNICAL_QUALITY).toBeUndefined();
     expect(selection.MEDICATION).toBeUndefined();

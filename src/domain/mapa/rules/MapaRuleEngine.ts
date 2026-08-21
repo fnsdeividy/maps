@@ -646,7 +646,7 @@ export class MapaRuleEngine {
     if (codes.has("NAP")) {
       results.push({
         code: "GENERAL_NAP_PHYSIOLOGIC",
-        category: "GENERAL_CONSIDERATION",
+        category: "CONCLUSION",
         status: "OK",
         message:
           "Observamos comportamento fisiológico da Pressão Arterial, relacionada ao período de sesta (sono durante o dia).",

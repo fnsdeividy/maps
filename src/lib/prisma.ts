@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
  * Incremente quando o schema Prisma mudar de forma que um client
  * em cache no hot-reload fique inválido (campos novos/removidos).
  */
-const PRISMA_CLIENT_GENERATION = 7;
+const PRISMA_CLIENT_GENERATION = 8;
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;

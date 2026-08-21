@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/authz";
+import { requireApprover, requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { saveClinicSettings } from "@/services/settings/clinicSettings";
 import { parseSettingsForm } from "@/services/settings/clinicSettingsSchema";
+import { CertificateError, inspectPkcs12 } from "@/services/certificates/pkcs12";
+import { assertPfxSize } from "@/services/certificates/signReport";
 
 export type SettingsState = {
   error?: string;
@@ -75,5 +77,70 @@ export async function saveClinicSettingsAction(
   revalidatePath("/dashboard");
   revalidatePath("/reports");
 
+  return { success: true };
+}
+
+export type CertificateState = {
+  error?: string;
+  success?: boolean;
+};
+
+export async function saveDoctorCertificateAction(
+  _state: CertificateState | null,
+  formData: FormData,
+): Promise<CertificateState> {
+  const user = await requireApprover();
+  const password = String(formData.get("password") ?? "");
+  const file = formData.get("certificate");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Selecione o arquivo .pfx ou .p12." };
+  }
+  if (!password) {
+    return { error: "Informe a senha do certificado." };
+  }
+
+  try {
+    assertPfxSize(file.size);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const info = inspectPkcs12(bytes, password);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        certificatePfx: Buffer.from(bytes),
+        certificateCommonName: info.commonName,
+        certificateIssuer: info.issuer,
+        certificateNotAfter: info.notAfter,
+        certificateThumbprint: info.thumbprint,
+        certificateUploadedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    const message =
+      error instanceof CertificateError
+        ? error.message
+        : "Não foi possível cadastrar o certificado.";
+    return { error: message };
+  }
+
+  revalidatePath("/settings");
+  return { success: true };
+}
+
+export async function removeDoctorCertificateAction(
+  _state: CertificateState | null,
+): Promise<CertificateState> {
+  const user = await requireApprover();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      certificatePfx: null,
+      certificateCommonName: null,
+      certificateIssuer: null,
+      certificateNotAfter: null,
+      certificateThumbprint: null,
+      certificateUploadedAt: null,
+    },
+  });
+  revalidatePath("/settings");
   return { success: true };
 }

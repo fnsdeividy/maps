@@ -15,7 +15,6 @@ const REWRITABLE_KEYS = [
   "pressurePeaks",
   "nightDipping",
   "specialSituations",
-  "generalConsiderations",
 ] as const;
 
 type RewritableKey = (typeof REWRITABLE_KEYS)[number];
@@ -28,7 +27,6 @@ const SHORT_KEYS = {
   pressurePeaks: "p",
   nightDipping: "n",
   specialSituations: "s",
-  generalConsiderations: "g",
 } as const satisfies Record<RewritableKey, string>;
 
 const LONG_KEYS = Object.fromEntries(

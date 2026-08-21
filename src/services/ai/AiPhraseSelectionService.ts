@@ -38,10 +38,7 @@ export const SECTION_CATEGORY: Record<
  * (ex.: a média do Sono). Medicações são factuais e situações especiais só
  * entram quando declaradas, então também ficam fora da seleção da IA.
  */
-const AI_COMPOSED_CATEGORIES: PhraseCategory[] = [
-  "GENERAL_CONSIDERATION",
-  "CONCLUSION",
-];
+const AI_COMPOSED_CATEGORIES: PhraseCategory[] = ["CONCLUSION"];
 
 /**
  * Categorias restritas ao que o motor já resolveu (nunca amplia pelo catálogo).
@@ -82,15 +79,24 @@ export function buildCandidates(
 
   for (const item of resolved) {
     if (item.code === "GUIDELINE_FOOTER") continue;
-    push(item.category, { code: item.code, text: item.text });
+    const category =
+      item.category === "GENERAL_CONSIDERATION" ? "CONCLUSION" : item.category;
+    push(category, { code: item.code, text: item.text });
   }
 
   for (const phrase of catalog) {
     if (!phrase.active) continue;
+    if (phrase.code === "GUIDELINE_FOOTER") continue;
+    if (hasUnresolvedPlaceholder(phrase.text)) continue;
+
+    if (phrase.category === "GENERAL_CONSIDERATION") {
+      push("CONCLUSION", { code: phrase.code, text: phrase.text });
+      continue;
+    }
+
     const category = phrase.category as PhraseCategory;
     if (ENGINE_ONLY_CATEGORIES.has(category)) continue;
     if (!AI_COMPOSED_CATEGORIES.includes(category)) continue;
-    if (hasUnresolvedPlaceholder(phrase.text)) continue;
     push(category, { code: phrase.code, text: phrase.text });
   }
 

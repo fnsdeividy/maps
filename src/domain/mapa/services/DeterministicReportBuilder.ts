@@ -1,4 +1,5 @@
 import { guidelineFooter } from "../config/guideline";
+import { interpretationDisplayText } from "../interpretation";
 import type { PhraseCategory, RuleResult } from "../types/clinical";
 import type { StructuredReportSections } from "../types/report";
 
@@ -17,6 +18,7 @@ export class DeterministicReportBuilder {
 
   build(resolved: Resolved[]): StructuredReportSections {
     const general = joinCategory(resolved, "GENERAL_CONSIDERATION");
+    const conclusion = joinCategory(resolved, "CONCLUSION");
 
     return {
       medications: joinCategory(resolved, "MEDICATION") || "Não informado.",
@@ -31,9 +33,9 @@ export class DeterministicReportBuilder {
         joinCategory(resolved, "NIGHT_DIPPING") || "Não informado.",
       specialSituations:
         joinCategory(resolved, "SPECIAL_SITUATION") || "Não informado.",
-      // A diretriz vai como Obs. na impressão, não misturada neste parágrafo.
-      generalConsiderations: general || "Não informado.",
-      conclusion: joinCategory(resolved, "CONCLUSION") || "Não informado.",
+      generalConsiderations: "Não informado.",
+      conclusion:
+        interpretationDisplayText(general, conclusion) || "Não informado.",
     };
   }
 

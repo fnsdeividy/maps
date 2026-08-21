@@ -1,5 +1,8 @@
 import { getClinicSettings, countPendingSettings } from "@/services/settings/clinicSettings";
+import { isApprover, requireUser } from "@/lib/authz";
+import { prisma } from "@/lib/prisma";
 import { ChangePasswordForm } from "./ChangePasswordForm";
+import { DoctorCertificateForm } from "./DoctorCertificateForm";
 import { SettingsForm } from "./SettingsForm";
 
 const pendingDescriptions = [
@@ -30,10 +33,21 @@ const pendingDescriptions = [
 ] as const;
 
 export default async function SettingsPage() {
+  const user = await requireUser();
   const settings = await getClinicSettings();
   const pending = pendingDescriptions.filter(
     (item) => settings.thresholds[item.key as keyof typeof settings.thresholds] == null,
   );
+  const doctor = isApprover(user.role)
+    ? await prisma.user.findUnique({
+        where: { id: user.id },
+        select: {
+          certificateCommonName: true,
+          certificateIssuer: true,
+          certificateNotAfter: true,
+        },
+      })
+    : null;
 
   return (
     <div className="max-w-3xl space-y-8">
@@ -45,6 +59,20 @@ export default async function SettingsPage() {
       </div>
 
       <ChangePasswordForm />
+
+      {isApprover(user.role) ? (
+        <DoctorCertificateForm
+          commonName={doctor?.certificateCommonName ?? null}
+          issuer={doctor?.certificateIssuer ?? null}
+          notAfter={
+            doctor?.certificateNotAfter
+              ? doctor.certificateNotAfter.toLocaleDateString("pt-BR", {
+                  timeZone: "America/Sao_Paulo",
+                })
+              : null
+          }
+        />
+      ) : null}
 
       <div>
         <h2 className="text-lg font-semibold">Parâmetros clínicos</h2>

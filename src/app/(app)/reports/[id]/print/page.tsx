@@ -63,6 +63,15 @@ export default async function PrintReportPage({
         chartPoints={model.chartPoints}
         doctorName={doctorName}
         doctorRqe={doctorRqe}
+        digitalSignature={
+          report.signedAt && report.signerCommonName && report.signerThumbprint
+            ? {
+                signedAt: report.signedAt,
+                signerCommonName: report.signerCommonName,
+                thumbprint: report.signerThumbprint,
+              }
+            : null
+        }
         examDate={report.examDate}
         guidelineNote={model.guidelineNote}
         includeHistogramChart={model.includeHistogramChart}
