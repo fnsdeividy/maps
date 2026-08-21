@@ -3,8 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  /// Schema isolado: não altera tabelas já existentes no banco compartilhado.
+  schemas  = ["mapa_laudos"]
 }
 
 /// role: OPERATOR (gera e envia laudos) | DOCTOR (aprovador: edita, aprova e devolve).
@@ -19,6 +21,8 @@ model User {
 
   notifications  Notification[]
   createdReports MapaReport[]   @relation("ReportCreatedBy")
+
+  @@schema("mapa_laudos")
 }
 
 /// Aviso in-app: laudo enviado para aprovação (aprovador) ou devolvido com pendências (operador).
@@ -36,6 +40,7 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([createdAt])
+  @@schema("mapa_laudos")
 }
 
 model Patient {
@@ -49,6 +54,8 @@ model Patient {
   updatedAt   DateTime         @updatedAt
   reports     MapaReport[]
   sourceFiles MapaSourceFile[]
+
+  @@schema("mapa_laudos")
 }
 
 model MapaReport {
@@ -141,6 +148,7 @@ model MapaReport {
   @@index([patientId])
   @@index([status])
   @@index([createdAt])
+  @@schema("mapa_laudos")
 }
 
 /// Arquivo original exportado pelo equipamento, preservado byte a byte para rastreabilidade.
@@ -190,6 +198,7 @@ model MapaSourceFile {
   @@index([patientId])
   @@index([fileHash])
   @@index([createdAt])
+  @@schema("mapa_laudos")
 }
 
 model ReportPhrase {
@@ -198,6 +207,8 @@ model ReportPhrase {
   category String
   text     String
   active   Boolean @default(true)
+
+  @@schema("mapa_laudos")
 }
 
 model AiUsage {
@@ -220,6 +231,7 @@ model AiUsage {
 
   @@index([reportId])
   @@index([createdAt])
+  @@schema("mapa_laudos")
 }
 
 model ReportGenerationLog {
@@ -235,6 +247,7 @@ model ReportGenerationLog {
 
   @@index([reportId])
   @@index([createdAt])
+  @@schema("mapa_laudos")
 }
 
 /// Parâmetros clínicos editáveis pela clínica (singleton).
@@ -243,4 +256,6 @@ model ClinicSettings {
   thresholdsJson  String
   guidelineFooter String
   updatedAt       DateTime @updatedAt
+
+  @@schema("mapa_laudos")
 }
