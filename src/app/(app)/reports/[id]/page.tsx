@@ -16,9 +16,11 @@ import {
   approveReportAction,
   regenerateReportAction,
   returnReportAction,
+  signApprovedReportAction,
   submitReportAction,
   updateReportSections,
 } from "../actions";
+import { DigitalSignatureForm } from "../DigitalSignatureForm";
 
 const TOPIC_LABELS: Record<string, string> = Object.fromEntries(
   REPORT_TOPICS.map((topic) => [topic.key, topic.label]),
@@ -81,6 +83,7 @@ export default async function ReportReviewPage({
   const save = updateReportSections.bind(null, report.id);
   const submit = submitReportAction.bind(null, report.id);
   const approve = approveReportAction.bind(null, report.id);
+  const signApproved = signApprovedReportAction.bind(null, report.id);
   const reject = returnReportAction.bind(null, report.id);
   const regenerate = regenerateReportAction.bind(null, report.id);
 
@@ -102,7 +105,7 @@ export default async function ReportReviewPage({
 
   const signError =
     error === "informe-senha-certificado"
-      ? "Informe a senha do certificado digital para assinar e aprovar o laudo."
+      ? "Informe a senha do certificado digital para assinar o laudo."
       : error
         ? decodeURIComponent(error)
         : null;
@@ -231,6 +234,18 @@ export default async function ReportReviewPage({
           Médico assistente: {report.assistantDoctorName ?? "—"}
         </p>
       </section>
+
+      {approverView && approved ? (
+        <DigitalSignatureForm
+          action={signApproved}
+          certificateCommonName={
+            approverCertificate?.certificateCommonName ?? null
+          }
+          hasCertificate={hasCertificate}
+          signedAt={report.signedAt}
+          signerCommonName={report.signerCommonName}
+        />
+      ) : null}
 
       {preLaudo ? (
         <ApproverPreLaudo

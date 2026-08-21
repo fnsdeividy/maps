@@ -238,6 +238,57 @@ export async function submitReportAction(reportId: string) {
   revalidatePath("/dashboard");
 }
 
+function signErrorRedirect(
+  reportId: string,
+  message: string,
+  returnTo?: string,
+): never {
+  const path =
+    returnTo === "print" ? `/reports/${reportId}/print` : `/reports/${reportId}`;
+  redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+async function signIfCertificateRegistered(
+  reportId: string,
+  userId: string,
+  password: string,
+  options?: { required?: boolean; returnTo?: string },
+) {
+  const doctor = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { certificatePfx: true },
+  });
+  const hasCertificate = Boolean(
+    doctor?.certificatePfx && doctor.certificatePfx.length > 0,
+  );
+  if (!hasCertificate) {
+    if (options?.required) {
+      signErrorRedirect(
+        reportId,
+        "Cadastre o certificado digital A1 em Configurações antes de assinar.",
+        options.returnTo,
+      );
+    }
+    return;
+  }
+  if (!password) {
+    signErrorRedirect(reportId, "informe-senha-certificado", options?.returnTo);
+  }
+  try {
+    await signReportWithDoctorCertificate({
+      reportId,
+      userId,
+      password,
+    });
+  } catch (error) {
+    const message =
+      error instanceof CertificateError
+        ? error.message
+        : "Não foi possível assinar o laudo com o certificado.";
+    signErrorRedirect(reportId, message, options?.returnTo);
+  }
+}
+
 /** Só o aprovador aprova. Assina com o certificado A1 quando cadastrado. */
 export async function approveReportAction(reportId: string, formData?: FormData) {
   const user = await requireApprover();
@@ -248,29 +299,11 @@ export async function approveReportAction(reportId: string, formData?: FormData)
     }
   }
 
-  const doctor = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { certificatePfx: true },
-  });
-  if (doctor?.certificatePfx && doctor.certificatePfx.length > 0) {
-    const password = String(formData?.get("certificatePassword") ?? "");
-    if (!password) {
-      redirect(`/reports/${reportId}?error=informe-senha-certificado`);
-    }
-    try {
-      await signReportWithDoctorCertificate({
-        reportId,
-        userId: user.id,
-        password,
-      });
-    } catch (error) {
-      const message =
-        error instanceof CertificateError
-          ? error.message
-          : "Não foi possível assinar o laudo com o certificado.";
-      redirect(`/reports/${reportId}?error=${encodeURIComponent(message)}`);
-    }
-  }
+  await signIfCertificateRegistered(
+    reportId,
+    user.id,
+    String(formData?.get("certificatePassword") ?? ""),
+  );
 
   const report = await approveReport(reportId);
   const patient = await prisma.patient.findUnique({
@@ -286,6 +319,36 @@ export async function approveReportAction(reportId: string, formData?: FormData)
   revalidatePath(`/reports/${reportId}/print`);
   revalidatePath("/reports");
   revalidatePath("/dashboard");
+}
+
+/** Assina um laudo já aprovado com o certificado A1 do médico. */
+export async function signApprovedReportAction(
+  reportId: string,
+  formData: FormData,
+) {
+  const user = await requireApprover();
+  const report = await prisma.mapaReport.findUnique({
+    where: { id: reportId },
+    select: { status: true },
+  });
+  if (!report || report.status !== "APPROVED") {
+    redirect(`/reports/${reportId}?error=${encodeURIComponent("Só é possível assinar um laudo já aprovado.")}`);
+  }
+
+  const returnTo =
+    String(formData.get("returnTo") ?? "") === "print" ? "print" : undefined;
+  await signIfCertificateRegistered(
+    reportId,
+    user.id,
+    String(formData.get("certificatePassword") ?? ""),
+    { required: true, returnTo },
+  );
+
+  revalidatePath(`/reports/${reportId}`);
+  revalidatePath(`/reports/${reportId}/print`);
+  if (returnTo === "print") {
+    redirect(`/reports/${reportId}/print`);
+  }
 }
 
 /** Refaz a seleção de frases pela IA, mantendo o status atual do laudo. */
