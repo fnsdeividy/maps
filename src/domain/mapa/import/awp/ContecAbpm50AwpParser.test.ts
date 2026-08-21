@@ -49,8 +49,8 @@ describe("ContecAbpm50AwpParser", () => {
     expect(first.diastolic).toBe(70);
     expect(first.heartRate).toBe(72);
     expect(first.valid).toBe(true);
-    expect(first.measuredAt.getHours()).toBe(8);
-    expect(first.measuredAt.getMinutes()).toBe(30);
+    expect(first.measuredAt.getUTCHours()).toBe(8);
+    expect(first.measuredAt.getUTCMinutes()).toBe(30);
   });
 
   it("usa a janela de sono declarada pelo arquivo", async () => {
@@ -117,7 +117,7 @@ describe("ContecAbpm50AwpParser", () => {
     expect(result.measurements[0].systolic).toBe(127);
     expect(result.measurements[0].diastolic).toBe(70);
     expect(result.measurements[0].heartRate).toBe(72);
-    expect(result.measurements[0].measuredAt.getDate()).toBe(13);
+    expect(result.measurements[0].measuredAt.getUTCDate()).toBe(13);
   });
 
   it("reconstrói a virada de dia quando os registros só trazem horário", async () => {
@@ -130,8 +130,8 @@ describe("ContecAbpm50AwpParser", () => {
     ].join("\n");
 
     const result = await parser.parse(buffer(declared), "exame.awp");
-    expect(result.measurements[0].measuredAt.getDate()).toBe(13);
-    expect(result.measurements[1].measuredAt.getDate()).toBe(14);
+    expect(result.measurements[0].measuredAt.getUTCDate()).toBe(13);
+    expect(result.measurements[1].measuredAt.getUTCDate()).toBe(14);
     expect(
       result.warnings.some((warning) => warning.code === "DATE_FROM_FILE_START_DATE"),
     ).toBe(true);
@@ -231,8 +231,8 @@ describe("ContecAbpm50AwpParser", () => {
     ].join("\n");
 
     const result = await parser.parse(buffer(content), "exame.awp");
-    expect(result.measurements[0].measuredAt.getMonth()).toBe(8);
-    expect(result.measurements[0].measuredAt.getDate()).toBe(13);
+    expect(result.measurements[0].measuredAt.getUTCMonth()).toBe(8);
+    expect(result.measurements[0].measuredAt.getUTCDate()).toBe(13);
   });
 
   it("não interpreta datas ambíguas entre dia e mês", async () => {
@@ -314,11 +314,11 @@ describe("ContecAbpm50AwpParser", () => {
     expect(byIndex[58].invalidReason).toBe("Manguito frouxo");
     expect(byIndex[59].invalidReason).toBe("Movimento excessivo");
 
-    expect(byIndex[13].measuredAt.getHours()).toBe(20);
-    expect(byIndex[13].measuredAt.getMinutes()).toBe(32);
-    expect(byIndex[14].measuredAt.getMinutes()).toBe(35);
-    expect(byIndex[58].measuredAt.getHours()).toBe(7);
-    expect(byIndex[58].measuredAt.getMinutes()).toBe(15);
-    expect(byIndex[59].measuredAt.getMinutes()).toBe(18);
+    expect(byIndex[13].measuredAt.getUTCHours()).toBe(20);
+    expect(byIndex[13].measuredAt.getUTCMinutes()).toBe(32);
+    expect(byIndex[14].measuredAt.getUTCMinutes()).toBe(35);
+    expect(byIndex[58].measuredAt.getUTCHours()).toBe(7);
+    expect(byIndex[58].measuredAt.getUTCMinutes()).toBe(15);
+    expect(byIndex[59].measuredAt.getUTCMinutes()).toBe(18);
   });
 });

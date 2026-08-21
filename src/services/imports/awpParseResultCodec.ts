@@ -1,20 +1,30 @@
 import type { MapaFileParseResult } from "@/domain/mapa/import/awp/types";
+import { fromStoredDateTime, toStoredDateTime } from "@/lib/dates";
 
 /**
- * O resultado do parser é guardado em JSON para sobreviver entre a análise e a
- * confirmação da importação, sem pedir o arquivo novamente ao usuário.
- * Datas viajam em ISO e são revividas na leitura.
+ * O resultado do parser é guardado em JSON entre a análise e a confirmação.
+ * Datas AWP viajam como wall-clock ("2026-08-17T08:35:00"), sem Z/offset.
  */
 export function serializeParseResult(result: MapaFileParseResult): string {
-  return JSON.stringify(result);
+  return JSON.stringify(result, (_key, value) => {
+    if (value instanceof Date) return toStoredDateTime(value);
+    return value;
+  });
 }
 
 type Serialized = Omit<
   MapaFileParseResult,
-  "examStart" | "examEnd" | "measurements" | "patientData"
+  | "examStart"
+  | "examEnd"
+  | "deviceSetupStartedAt"
+  | "measurementStartedAt"
+  | "measurements"
+  | "patientData"
 > & {
   examStart?: string;
   examEnd?: string;
+  deviceSetupStartedAt?: string;
+  measurementStartedAt?: string;
   measurements: Array<
     Omit<MapaFileParseResult["measurements"][number], "measuredAt"> & { measuredAt: string }
   >;
@@ -28,19 +38,29 @@ export function deserializeParseResult(payload: string): MapaFileParseResult {
 
   return {
     ...raw,
-    examStart: raw.examStart ? new Date(raw.examStart) : undefined,
-    examEnd: raw.examEnd ? new Date(raw.examEnd) : undefined,
+    examStart: raw.examStart ? fromStoredDateTime(raw.examStart) : undefined,
+    examEnd: raw.examEnd ? fromStoredDateTime(raw.examEnd) : undefined,
+    deviceSetupStartedAt: raw.deviceSetupStartedAt
+      ? fromStoredDateTime(raw.deviceSetupStartedAt)
+      : undefined,
+    measurementStartedAt: raw.measurementStartedAt
+      ? fromStoredDateTime(raw.measurementStartedAt)
+      : undefined,
     patientData: raw.patientData
       ? {
           ...raw.patientData,
           birthday: raw.patientData.birthday
-            ? new Date(raw.patientData.birthday)
+            ? fromStoredDateTime(
+                raw.patientData.birthday.includes("T")
+                  ? raw.patientData.birthday
+                  : `${raw.patientData.birthday.slice(0, 10)}T00:00:00`,
+              )
             : undefined,
         }
       : undefined,
     measurements: raw.measurements.map((measurement) => ({
       ...measurement,
-      measuredAt: new Date(measurement.measuredAt),
+      measuredAt: fromStoredDateTime(measurement.measuredAt),
     })),
   };
 }

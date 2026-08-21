@@ -86,7 +86,7 @@ export function isWithinSleepWindow(
   const end = clockToMinutes(window.end);
   if (start === undefined || end === undefined || start === end) return undefined;
 
-  const minutes = measuredAt.getHours() * 60 + measuredAt.getMinutes();
+  const minutes = measuredAt.getUTCHours() * 60 + measuredAt.getUTCMinutes();
   return start < end
     ? minutes >= start && minutes < end
     : minutes >= start || minutes < end;

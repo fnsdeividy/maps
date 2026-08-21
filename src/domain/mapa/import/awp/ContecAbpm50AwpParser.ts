@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { MapaFileParser } from "../MapaFileParser";
 import { AwpFormatDetector } from "./AwpFormatDetector";
-import { findMetadata, metadataToRecord } from "./AwpDocumentReader";
+import { findMetadata, metadataInSection, metadataToRecord } from "./AwpDocumentReader";
 import { AwpValidator } from "./AwpValidator";
 import { readDeviceComments } from "./deviceComments";
 import { readPatientData } from "./patientData";
@@ -22,9 +22,11 @@ import { buildDecoderChain } from "./decoders";
 import { hexToBytes } from "./decoders/ContecAwpHexMeasurementDecoder";
 import { findHexLayout } from "./decoders/hexLayouts";
 import {
+  buildDate,
   inferDateOrder,
   isDateToken,
   parseDateParts,
+  readSectionLocalDateTime,
   type DateOrder,
 } from "./decoders/dateTime";
 import { normalizeFieldName, type AwpFieldName } from "./decoders/fields";
@@ -37,6 +39,7 @@ import type {
   ParseConfidence,
   ParseWarning,
 } from "./types";
+import { toStoredDateTime } from "@/lib/dates";
 
 const FIELD_ORDER_KEYS = ["DataFormat", "RecordFormat", "Fields", "Columns", "Format"];
 
@@ -150,6 +153,49 @@ export class ContecAbpm50AwpParser implements MapaFileParser {
     const finalConfidence = lowestConfidence(descriptor.confidence, confidence);
 
     const timestamps = measurements.map((measurement) => measurement.measuredAt.getTime());
+    const firstMeasurement = measurements.reduce((earliest, measurement) =>
+      measurement.measuredAt.getTime() < earliest.measuredAt.getTime()
+        ? measurement
+        : earliest,
+    );
+
+    const deviceSetupParts = readSectionLocalDateTime(
+      metadataInSection(document, "PATIENTDATA"),
+    );
+    const abpmStartParts = readSectionLocalDateTime(
+      metadataInSection(document, "ABPMDATA"),
+    );
+    const deviceSetupStartedAt = deviceSetupParts
+      ? buildDate(
+          {
+            year: deviceSetupParts.year,
+            month: deviceSetupParts.month,
+            day: deviceSetupParts.day,
+          },
+          {
+            hour: deviceSetupParts.hour,
+            minute: deviceSetupParts.minute,
+            second: deviceSetupParts.second,
+          },
+        )
+      : undefined;
+    const abpmDeclaredStart = abpmStartParts
+      ? buildDate(
+          {
+            year: abpmStartParts.year,
+            month: abpmStartParts.month,
+            day: abpmStartParts.day,
+          },
+          {
+            hour: abpmStartParts.hour,
+            minute: abpmStartParts.minute,
+            second: abpmStartParts.second,
+          },
+        )
+      : undefined;
+
+    // Início das medições = primeira medição decodificada (não UTC, wall-clock).
+    const measurementStartedAt = firstMeasurement.measuredAt ?? abpmDeclaredStart;
 
     return {
       manufacturer: CONTEC_MANUFACTURER,
@@ -162,6 +208,8 @@ export class ContecAbpm50AwpParser implements MapaFileParser {
       metadata: metadataToRecord(document),
       examStart: new Date(Math.min(...timestamps)),
       examEnd: new Date(Math.max(...timestamps)),
+      deviceSetupStartedAt,
+      measurementStartedAt,
       measurements,
       rawRecords,
       comments: document.comments.map((comment) => comment.text),
@@ -229,7 +277,8 @@ export class ContecAbpm50AwpParser implements MapaFileParser {
 
     for (const measurement of measurements) {
       const minutes =
-        measurement.measuredAt.getHours() * 60 + measurement.measuredAt.getMinutes();
+        measurement.measuredAt.getUTCHours() * 60 +
+        measurement.measuredAt.getUTCMinutes();
       if (previousMinutes !== undefined && minutes < previousMinutes) extraDays += 1;
       previousMinutes = minutes;
 
@@ -239,7 +288,7 @@ export class ContecAbpm50AwpParser implements MapaFileParser {
         );
         const record = rawRecords.find((item) => item.index === measurement.index);
         if (record?.decoded) {
-          record.decoded.measuredAt = measurement.measuredAt.toISOString();
+          record.decoded.measuredAt = toStoredDateTime(measurement.measuredAt);
         }
       }
     }
@@ -343,7 +392,7 @@ export class ContecAbpm50AwpParser implements MapaFileParser {
             ? hexToBytes(entry.value)
             : undefined,
         decoded: {
-          measuredAt: validated.measurement.measuredAt.toISOString(),
+          measuredAt: toStoredDateTime(validated.measurement.measuredAt),
           systolic: validated.measurement.systolic,
           diastolic: validated.measurement.diastolic,
           heartRate: validated.measurement.heartRate,

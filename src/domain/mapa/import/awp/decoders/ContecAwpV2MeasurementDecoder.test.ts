@@ -35,11 +35,11 @@ describe("ContecAwpV2MeasurementDecoder", () => {
     expect(outcome.status).toBe("DECODED");
     if (outcome.status !== "DECODED") return;
 
-    expect(outcome.measurement.measuredAt.getFullYear()).toBe(2026);
-    expect(outcome.measurement.measuredAt.getMonth()).toBe(7);
-    expect(outcome.measurement.measuredAt.getDate()).toBe(18);
-    expect(outcome.measurement.measuredAt.getHours()).toBe(8);
-    expect(outcome.measurement.measuredAt.getMinutes()).toBe(0);
+    expect(outcome.measurement.measuredAt.getUTCFullYear()).toBe(2026);
+    expect(outcome.measurement.measuredAt.getUTCMonth()).toBe(7);
+    expect(outcome.measurement.measuredAt.getUTCDate()).toBe(18);
+    expect(outcome.measurement.measuredAt.getUTCHours()).toBe(8);
+    expect(outcome.measurement.measuredAt.getUTCMinutes()).toBe(0);
     expect(outcome.measurement.systolic).toBe(121);
     expect(outcome.measurement.diastolic).toBe(68);
     expect(outcome.measurement.meanArterialPressure).toBe(86);
@@ -53,16 +53,31 @@ describe("ContecAwpV2MeasurementDecoder", () => {
     expect(outcome.status).toBe("DECODED");
     if (outcome.status !== "DECODED") return;
 
-    expect(outcome.measurement.measuredAt.getFullYear()).toBe(2020);
-    expect(outcome.measurement.measuredAt.getMonth()).toBe(8);
-    expect(outcome.measurement.measuredAt.getDate()).toBe(10);
-    expect(outcome.measurement.measuredAt.getHours()).toBe(19);
-    expect(outcome.measurement.measuredAt.getMinutes()).toBe(26);
+    expect(outcome.measurement.measuredAt.getUTCFullYear()).toBe(2020);
+    expect(outcome.measurement.measuredAt.getUTCMonth()).toBe(8);
+    expect(outcome.measurement.measuredAt.getUTCDate()).toBe(10);
+    expect(outcome.measurement.measuredAt.getUTCHours()).toBe(19);
+    expect(outcome.measurement.measuredAt.getUTCMinutes()).toBe(26);
     expect(outcome.measurement.systolic).toBe(146);
     expect(outcome.measurement.diastolic).toBe(99);
     expect(outcome.measurement.meanArterialPressure).toBe(115);
     expect(outcome.measurement.heartRate).toBe(91);
     expect(outcome.measurement.rawTail).toBe("0001000000010");
+  });
+
+  it("preserva wall-clock 08:35 do registro 07EA08110823… (sem UTC−3)", () => {
+    const outcome = decode("07EA0811082300008A005F006D00510001000000000");
+
+    expect(outcome.status).toBe("DECODED");
+    if (outcome.status !== "DECODED") return;
+
+    expect(outcome.measurement.measuredAt.getUTCFullYear()).toBe(2026);
+    expect(outcome.measurement.measuredAt.getUTCMonth()).toBe(7);
+    expect(outcome.measurement.measuredAt.getUTCDate()).toBe(17);
+    expect(outcome.measurement.measuredAt.getUTCHours()).toBe(8);
+    expect(outcome.measurement.measuredAt.getUTCMinutes()).toBe(35);
+    expect(outcome.measurement.systolic).toBe(138);
+    expect(outcome.measurement.diastolic).toBe(95);
   });
 
   it("rejeita registro com menos de 30 caracteres hex", () => {

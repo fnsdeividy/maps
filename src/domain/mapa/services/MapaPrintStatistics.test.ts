@@ -13,7 +13,7 @@ function m(
 ): MapaMeasurement {
   return {
     index,
-    measuredAt: new Date(2026, 7, 18, hour, minute),
+    measuredAt: new Date(Date.UTC(2026, 7, 18, hour, minute)),
     systolic,
     diastolic,
     heartRate,

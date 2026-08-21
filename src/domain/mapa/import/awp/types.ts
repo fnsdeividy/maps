@@ -190,6 +190,17 @@ export interface MapaFileParseResult {
   examStart?: Date;
   examEnd?: Date;
 
+  /**
+   * Início da configuração do aparelho ([PATIENTDATA] YearBegin…).
+   * Wall-clock do equipamento, sem timezone.
+   */
+  deviceSetupStartedAt?: Date;
+  /**
+   * Início das medições: primeira medição decodificada (preferencial) ou
+   * [ABPMDATA] YearBegin… quando disponível.
+   */
+  measurementStartedAt?: Date;
+
   measurements: MapaMeasurement[];
   rawRecords: AwpRawRecord[];
 

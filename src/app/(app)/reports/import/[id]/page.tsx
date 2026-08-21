@@ -264,8 +264,20 @@ export default async function AwpImportPreviewPage({
           <dd>{sourceFile.parserVersion}</dd>
           <dt className="text-slate-500">Confiança do parsing</dt>
           <dd>{CONFIDENCE_LABEL[sourceFile.parseConfidence] ?? sourceFile.parseConfidence}</dd>
-          <dt className="text-slate-500">Início do exame</dt>
-          <dd>{metrics.examStart ? formatDateTime(metrics.examStart) : "—"}</dd>
+          <dt className="text-slate-500">Configuração do aparelho</dt>
+          <dd>
+            {result.deviceSetupStartedAt
+              ? formatDateTime(result.deviceSetupStartedAt)
+              : "—"}
+          </dd>
+          <dt className="text-slate-500">Início das medições</dt>
+          <dd>
+            {result.measurementStartedAt
+              ? formatDateTime(result.measurementStartedAt)
+              : metrics.examStart
+                ? formatDateTime(metrics.examStart)
+                : "—"}
+          </dd>
           <dt className="text-slate-500">Fim do exame</dt>
           <dd>{metrics.examEnd ? formatDateTime(metrics.examEnd) : "—"}</dd>
         </dl>

@@ -6,7 +6,7 @@ const validator = new AwpValidator();
 function decoded(overrides: Partial<Parameters<AwpValidator["validateMeasurement"]>[0]> = {}) {
   return {
     index: 1,
-    measuredAt: new Date(2024, 8, 13, 8, 30),
+    measuredAt: new Date(Date.UTC(2024, 8, 13, 8, 30)),
     systolic: 127,
     diastolic: 70,
     heartRate: 72,
@@ -55,13 +55,13 @@ describe("AwpValidator", () => {
   });
 
   it("aponta horários duplicados e fora de ordem", () => {
-    const at = new Date(2024, 8, 13, 8, 30);
+    const at = new Date(Date.UTC(2024, 8, 13, 8, 30));
     const warnings = validator.validateSequence([
       { index: 1, measuredAt: at, systolic: 120, diastolic: 80, valid: true },
       { index: 2, measuredAt: at, systolic: 121, diastolic: 81, valid: true },
       {
         index: 3,
-        measuredAt: new Date(2024, 8, 13, 7, 30),
+        measuredAt: new Date(Date.UTC(2024, 8, 13, 7, 30)),
         systolic: 122,
         diastolic: 82,
         valid: true,

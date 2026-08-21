@@ -13,7 +13,7 @@ function measurement(
 ): MapaMeasurement {
   return {
     index,
-    measuredAt: new Date(2024, 8, 13, hour, 0),
+    measuredAt: new Date(Date.UTC(2024, 8, 13, hour, 0)),
     systolic,
     diastolic,
     heartRate: 70,
@@ -96,7 +96,7 @@ describe("MapaMetricsCalculator", () => {
     ]);
 
     expect(metrics.peakSystolic?.value).toBe(168);
-    expect(metrics.peakSystolic?.at.getHours()).toBe(15);
+    expect(metrics.peakSystolic?.at.getUTCHours()).toBe(15);
     expect(metrics.peakDiastolic?.value).toBe(102);
   });
 

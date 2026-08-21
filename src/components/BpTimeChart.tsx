@@ -68,7 +68,8 @@ function pad2(value: number): string {
 }
 
 function formatHourLabel(date: Date): string {
-  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+  // Medições AWP: wall-clock nos componentes UTC (não usar getHours local).
+  return `${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}`;
 }
 
 function buildHourTicks(minTime: number, maxTime: number, maxTicks: number): Date[] {
@@ -388,7 +389,7 @@ export function BpTimeChart({
         : "";
 
   const midnight = hourTicks.find(
-    (tick) => tick.getHours() === 0 && tick.getMinutes() === 0,
+    (tick) => tick.getUTCHours() === 0 && tick.getUTCMinutes() === 0,
   );
 
   return (
@@ -564,7 +565,7 @@ export function BpTimeChart({
             x={scaleX(midnight)}
             y={axisY + 30}
           >
-            {midnight.getFullYear()}/{midnight.getMonth() + 1}/{midnight.getDate()}
+            {midnight.getUTCFullYear()}/{midnight.getUTCMonth() + 1}/{midnight.getUTCDate()}
           </text>
         ) : null}
         <text
