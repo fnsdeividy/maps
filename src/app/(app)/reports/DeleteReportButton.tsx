@@ -5,7 +5,7 @@ export function DeleteReportButton({
   patientName,
   variant = "inline",
 }: {
-  action: () => Promise<never>;
+  action: () => Promise<void>;
   patientName: string;
   variant?: "inline" | "button";
 }) {
