@@ -751,17 +751,17 @@ export function MapaPrintDocument({
 
           {stats.awake ? (
             <StatsTable
-              countLabel={`Total de amostras utilizadas nas estatísticas acordado: ${stats.awake.count}`}
+              countLabel={`Total de amostras utilizadas nas estatísticas durante a vigília: ${stats.awake.count}`}
               stats={stats.awake}
-              title="Estatística do total de amostras utilizadas nas estatísticas acordado"
+              title="Estatística do total de amostras utilizadas nas estatísticas durante a vigília"
             />
           ) : null}
 
           {stats.sleep ? (
             <StatsTable
-              countLabel={`Total de amostras usadas dormindo: ${stats.sleep.count}`}
+              countLabel={`Total de amostras usadas durante o sono: ${stats.sleep.count}`}
               stats={stats.sleep}
-              title="Estatística do total de amostras usadas dormindo"
+              title="Estatística do total de amostras usadas durante o sono"
             />
           ) : null}
 
