@@ -2,9 +2,16 @@ import Link from "next/link";
 import { formatDate } from "@/lib/dates";
 import { StatusBadge } from "@/components/StatusBadge";
 import { reportRepository } from "@/repositories/reportRepository";
+import { isApprover, requireUser } from "@/lib/authz";
+import { deleteReportAction } from "./actions";
+import { DeleteReportButton } from "./DeleteReportButton";
 
 export default async function ReportsPage() {
-  const reports = await reportRepository.list();
+  const [reports, user] = await Promise.all([
+    reportRepository.list(),
+    requireUser(),
+  ]);
+  const canDelete = isApprover(user.role);
 
   return (
     <div>
@@ -26,21 +33,31 @@ export default async function ReportsPage() {
             </tr>
           </thead>
           <tbody>
-            {reports.map((report) => (
-              <tr key={report.id} className="border-t border-slate-100">
-                <td className="px-4 py-3">{report.patient.name}</td>
-                <td className="px-4 py-3">{formatDate(report.examDate)}</td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={report.status} />
-                </td>
-                <td className="px-4 py-3">{report.source}</td>
-                <td className="px-4 py-3 text-right">
-                  <Link className="text-teal-700" href={`/reports/${report.id}`}>
-                    Revisar
-                  </Link>
-                </td>
-              </tr>
-            ))}
+            {reports.map((report) => {
+              return (
+                <tr key={report.id} className="border-t border-slate-100">
+                  <td className="px-4 py-3">{report.patient.name}</td>
+                  <td className="px-4 py-3">{formatDate(report.examDate)}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={report.status} />
+                  </td>
+                  <td className="px-4 py-3">{report.source}</td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-3">
+                      <Link className="text-teal-700" href={`/reports/${report.id}`}>
+                        Revisar
+                      </Link>
+                      {canDelete ? (
+                        <DeleteReportButton
+                          action={deleteReportAction.bind(null, report.id)}
+                          patientName={report.patient.name}
+                        />
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {reports.length === 0 ? (
               <tr>
                 <td className="px-4 py-6 text-slate-500" colSpan={5}>

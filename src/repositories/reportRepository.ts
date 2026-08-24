@@ -4,6 +4,7 @@ import { examDayRange } from "@/lib/dates";
 export const reportRepository = {
   list() {
     return prisma.mapaReport.findMany({
+      where: { active: true },
       orderBy: { createdAt: "desc" },
       include: { patient: true },
     });
@@ -20,6 +21,7 @@ export const reportRepository = {
     return prisma.mapaReport.findFirst({
       where: {
         patientId,
+        active: true,
         examDate: { gte: start, lt: endExclusive },
       },
       orderBy: { createdAt: "desc" },

@@ -428,3 +428,16 @@ export async function returnReportAction(reportId: string, formData: FormData) {
   revalidatePath("/reports");
   revalidatePath("/dashboard");
 }
+
+/** Só o aprovador pode inativar (soft-delete) um laudo. */
+export async function deleteReportAction(reportId: string) {
+  await requireApprover();
+  await prisma.mapaReport.update({
+    where: { id: reportId },
+    data: { active: false },
+  });
+  await logReportEvent({ reportId, event: "REPORT_DELETED" });
+  revalidatePath("/reports");
+  revalidatePath("/dashboard");
+  redirect("/reports");
+}

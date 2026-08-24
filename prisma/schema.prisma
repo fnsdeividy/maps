@@ -149,6 +149,8 @@ model MapaReport {
   includePieChart       Boolean @default(true)
   /** Nome do médico assistente exibido na assinatura do laudo. */
   assistantDoctorName String?
+  /** Soft-delete: false oculta o laudo em todas as listagens sem apagar os dados. */
+  active         Boolean   @default(true)
   approvedAt     DateTime?
   /** Assinatura digital ICP-Brasil (PKCS#7) do laudo aprovado. */
   signedAt         DateTime?

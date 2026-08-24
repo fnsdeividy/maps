@@ -14,6 +14,7 @@ import { getSigningDoctor } from "@/lib/signingDoctor";
 import { buildReportPrintModel } from "@/services/reports/printModel";
 import {
   approveReportAction,
+  deleteReportAction,
   regenerateReportAction,
   returnReportAction,
   signApprovedReportAction,
@@ -21,6 +22,7 @@ import {
   updateReportSections,
 } from "../actions";
 import { DigitalSignatureForm } from "../DigitalSignatureForm";
+import { DeleteReportButton } from "../DeleteReportButton";
 
 const TOPIC_LABELS: Record<string, string> = Object.fromEntries(
   REPORT_TOPICS.map((topic) => [topic.key, topic.label]),
@@ -86,6 +88,7 @@ export default async function ReportReviewPage({
   const signApproved = signApprovedReportAction.bind(null, report.id);
   const reject = returnReportAction.bind(null, report.id);
   const regenerate = regenerateReportAction.bind(null, report.id);
+  const softDelete = deleteReportAction.bind(null, report.id);
 
   // Pré-laudo do aprovador: monta o layout real do laudo com feedback embutido.
   const preLaudo = approverView && !approved;
@@ -221,6 +224,13 @@ export default async function ReportReviewPage({
             >
               {approved ? "Imprimir laudo" : "Ver laudo e gráficos"}
             </Link>
+          ) : null}
+          {approverView ? (
+            <DeleteReportButton
+              action={softDelete}
+              patientName={report.patient.name}
+              variant="button"
+            />
           ) : null}
         </div>
       </div>
