@@ -34,8 +34,9 @@ export function DoctorCertificateForm({
       <div>
         <h2 className="font-semibold">Certificado digital (ICP-Brasil A1)</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Envie o arquivo .pfx ou .p12 do seu certificado de médico. A senha é
-          usada só para validar e assinar — ela não é gravada. Tokens A3
+          Opcional: use só se quiser assinar o laudo digitalmente depois de
+          aprová-lo. O fluxo padrão continua sendo imprimir, carimbar e
+          assinar. Envie o .pfx ou .p12; a senha não é gravada. Tokens A3
           (cartão/token USB) não são suportados neste cadastro.
         </p>
       </div>

@@ -289,21 +289,15 @@ async function signIfCertificateRegistered(
   }
 }
 
-/** Só o aprovador aprova. Assina com o certificado A1 quando cadastrado. */
+/** Só o aprovador aprova. A assinatura digital é opcional e feita depois. */
 export async function approveReportAction(reportId: string, formData?: FormData) {
-  const user = await requireApprover();
+  await requireApprover();
   if (formData) {
     const parsed = sectionsFromFormData(formData);
     if (Object.keys(parsed).length > 0) {
       await saveEditedSections(reportId, parsed);
     }
   }
-
-  await signIfCertificateRegistered(
-    reportId,
-    user.id,
-    String(formData?.get("certificatePassword") ?? ""),
-  );
 
   const report = await approveReport(reportId);
   const patient = await prisma.patient.findUnique({

@@ -31,7 +31,8 @@ export function DigitalSignatureForm({
         </p>
       ) : (
         <p className="mt-1 text-xs text-slate-500">
-          Laudo aprovado ainda sem assinatura ICP-Brasil.
+          O fluxo padrão é imprimir, carimbar e assinar à mão. A assinatura
+          digital ICP-Brasil é opcional.
         </p>
       )}
 
@@ -65,7 +66,7 @@ export function DigitalSignatureForm({
           <Link className="underline" href="/settings">
             Configurações
           </Link>{" "}
-          para assinar este laudo.
+          para assinar este laudo, se quiser.
         </p>
       )}
     </section>
