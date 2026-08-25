@@ -88,6 +88,8 @@ model MapaReport {
   submittedAt DateTime?
 
   currentMedications String @default("")
+  /** YES | NO | UNKNOWN — medicação de efeito cardiovascular (anti-hipertensivo). */
+  cvMedicationStatus String @default("UNKNOWN")
 
   officeSystolicPressure  Float?
   officeDiastolicPressure Float?
@@ -99,8 +101,13 @@ model MapaReport {
   pregnancyStatus String @default("UNKNOWN")
   alcoholUse      String @default("UNKNOWN")
   smoking         String @default("UNKNOWN")
-  insomnia        String @default("UNKNOWN")
   caffeineUse     String @default("UNKNOWN")
+  insomnia        String @default("UNKNOWN")
+  /** YES | NO | UNKNOWN — sintomas relatados no exame */
+  headache        String @default("UNKNOWN")
+  chestPain       String @default("UNKNOWN")
+  dyspnea         String @default("UNKNOWN")
+  dizziness       String @default("UNKNOWN")
 
   totalMeasurements            Int?
   validMeasurements            Int?

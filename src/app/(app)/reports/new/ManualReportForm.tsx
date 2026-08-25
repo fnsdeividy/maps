@@ -1,5 +1,6 @@
 import { Field } from "@/components/Field";
 import { PatientPicker } from "@/components/PatientPicker";
+import { MedicationFields } from "@/components/MedicationFields";
 import { SpecialSituationFlags } from "@/components/SpecialSituationFlags";
 import { createAndGenerateReport } from "../actions";
 
@@ -29,15 +30,7 @@ export function ManualReportForm({
           <Field label="Médico assistente" name="assistantDoctorName" required />
         </div>
         <Field label="Data do exame" name="examDate" required type="date" />
-        <label className="col-span-2 block text-sm">
-          <span className="mb-1 block text-slate-600">Medicações atuais</span>
-          <textarea
-            className="w-full rounded-md border border-slate-300 px-3 py-2"
-            name="currentMedications"
-            placeholder="Ex.: Uso de Bisoprolol 2,5mg às 7 horas."
-            rows={2}
-          />
-        </label>
+        <MedicationFields />
       </section>
 
       <section>

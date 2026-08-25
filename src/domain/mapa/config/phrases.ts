@@ -288,6 +288,26 @@ export const REPORT_PHRASES: Array<{
     text: "Relato de uso de cafeína.",
   },
   {
+    code: "SPECIAL_HEADACHE",
+    category: "SPECIAL_SITUATION",
+    text: "Relato de dores de cabeça.",
+  },
+  {
+    code: "SPECIAL_CHEST_PAIN",
+    category: "SPECIAL_SITUATION",
+    text: "Relato de dores no peito.",
+  },
+  {
+    code: "SPECIAL_DYSPNEA",
+    category: "SPECIAL_SITUATION",
+    text: "Relato de falta de ar.",
+  },
+  {
+    code: "SPECIAL_DIZZINESS",
+    category: "SPECIAL_SITUATION",
+    text: "Relato de tontura.",
+  },
+  {
     code: "SPECIAL_ORTHOSTATIC",
     category: "SPECIAL_SITUATION",
     text: "Redução pressórica ortostática.",
@@ -335,6 +355,11 @@ export const REPORT_PHRASES: Array<{
     text: "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Sustentada.",
   },
   {
+    code: "OFFICE_VS_MAPA_CONTROLLED",
+    category: "CONCLUSION",
+    text: "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório, em uso de medicação de efeito cardiovascular, são compatíveis com Hipertensão Arterial Controlada.",
+  },
+  {
     code: "GENERAL_NAP_PHYSIOLOGIC",
     category: "CONCLUSION",
     text: "Observamos comportamento fisiológico da Pressão Arterial, relacionada ao período de sesta (sono durante o dia).",
@@ -375,6 +400,11 @@ export const REPORT_PHRASES: Array<{
     code: "CONCLUSION_MASKED",
     category: "CONCLUSION",
     text: "Exame com valores compatíveis com Hipertensão Arterial Mascarada.",
+  },
+  {
+    code: "CONCLUSION_CONTROLLED",
+    category: "CONCLUSION",
+    text: "Exame com valores compatíveis com Hipertensão Arterial Controlada, em uso de medicação de efeito cardiovascular.",
   },
   {
     code: "CONCLUSION_NORMOTENSION_ALTERED_AWAKE_SYS",

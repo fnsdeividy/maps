@@ -19,29 +19,38 @@ export function triStateLabel(value: TriStateFlag): string {
 }
 
 export const SPECIAL_FLAG_FIELDS = [
-  { key: "pregnancyStatus", label: "Gestante", name: "pregnancyStatus" },
-  { key: "alcoholUse", label: "Uso de bebidas alcoólicas", name: "alcoholUse" },
-  { key: "smoking", label: "Tabagismo", name: "smoking" },
-  { key: "insomnia", label: "Insônia", name: "insomnia" },
-  { key: "caffeineUse", label: "Uso de cafeína", name: "caffeineUse" },
+  { key: "pregnancyStatus", label: "Gestante", name: "pregnancyStatus", group: "context" },
+  { key: "alcoholUse", label: "Uso de bebidas alcoólicas", name: "alcoholUse", group: "context" },
+  { key: "smoking", label: "Tabagismo", name: "smoking", group: "context" },
+  { key: "caffeineUse", label: "Uso de cafeína", name: "caffeineUse", group: "context" },
+  { key: "headache", label: "Dores de cabeça", name: "headache", group: "symptom" },
+  { key: "insomnia", label: "Insônia", name: "insomnia", group: "symptom" },
+  { key: "chestPain", label: "Dores no peito", name: "chestPain", group: "symptom" },
+  { key: "dyspnea", label: "Falta de ar", name: "dyspnea", group: "symptom" },
+  { key: "dizziness", label: "Tontura", name: "dizziness", group: "symptom" },
 ] as const;
 
 export type SpecialFlagKey = (typeof SPECIAL_FLAG_FIELDS)[number]["key"];
 
-export type SpecialFlags = Record<SpecialFlagKey, TriStateFlag>;
+export type SpecialFlags = Record<SpecialFlagKey, TriStateFlag> & {
+  cvMedicationStatus: TriStateFlag;
+};
 
 export function readRequiredSpecialFlags(formData: FormData): SpecialFlags | null {
-  const flags = {} as SpecialFlags;
+  const flags = {} as Record<SpecialFlagKey, TriStateFlag>;
   for (const field of SPECIAL_FLAG_FIELDS) {
     const value = parseTriStateFlag(formData.get(field.name));
     if (!value) return null;
     flags[field.key] = value;
   }
-  return flags;
+  const cvMedicationStatus = parseTriStateFlag(formData.get("cvMedicationStatus"));
+  if (!cvMedicationStatus) return null;
+  return { ...flags, cvMedicationStatus };
 }
 
 export function summarizeSpecialFlags(flags: SpecialFlags): string {
-  return SPECIAL_FLAG_FIELDS.map(
+  const special = SPECIAL_FLAG_FIELDS.map(
     (field) => `${field.label}: ${triStateLabel(flags[field.key])}`,
   ).join(". ");
+  return `${special}. Medicação de efeito cardiovascular: ${triStateLabel(flags.cvMedicationStatus)}`;
 }

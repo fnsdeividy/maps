@@ -5,6 +5,7 @@ import { BpPieCharts } from "@/components/BpPieCharts";
 import { BpTimeChart } from "@/components/BpTimeChart";
 import { Field } from "@/components/Field";
 import { MeasurementObservationTable } from "@/components/MeasurementObservationTable";
+import { MedicationFields } from "@/components/MedicationFields";
 import { SpecialSituationFlags } from "@/components/SpecialSituationFlags";
 import { formatDate, formatDateTime, formatTime, toInputDate } from "@/lib/dates";
 import {
@@ -79,8 +80,12 @@ export default async function AwpImportPreviewPage({
         pregnancyStatus: asTriState(linkedReport.pregnancyStatus),
         alcoholUse: asTriState(linkedReport.alcoholUse),
         smoking: asTriState(linkedReport.smoking),
-        insomnia: asTriState(linkedReport.insomnia),
         caffeineUse: asTriState(linkedReport.caffeineUse),
+        headache: asTriState(linkedReport.headache),
+        insomnia: asTriState(linkedReport.insomnia),
+        chestPain: asTriState(linkedReport.chestPain),
+        dyspnea: asTriState(linkedReport.dyspnea),
+        dizziness: asTriState(linkedReport.dizziness),
         pregnancyMonths: linkedReport.pregnancyMonths,
       }
     : undefined;
@@ -529,17 +534,12 @@ export default async function AwpImportPreviewPage({
           />
           <input name="sleepStart" type="hidden" value={displayAsleep} />
           <input name="sleepEnd" type="hidden" value={displayAwake} />
-          <label className="col-span-2 block text-sm">
-            <span className="mb-1 block text-slate-600">Medicações atuais</span>
-            <textarea
-              className="w-full rounded-md border border-slate-300 px-3 py-2"
-              defaultValue={
-                linkedReport?.currentMedications || patientData?.medications || ""
-              }
-              name="currentMedications"
-              rows={2}
-            />
-          </label>
+          <MedicationFields
+            defaultMedications={
+              linkedReport?.currentMedications || patientData?.medications || ""
+            }
+            defaultStatus={asTriState(linkedReport?.cvMedicationStatus ?? "")}
+          />
           <Field
             defaultValue={linkedReport?.officeSystolicPressure ?? ""}
             label="PAS consultório"

@@ -32,13 +32,22 @@ export function SpecialSituationFlags({
         Situações especiais <span className="font-normal text-red-600">*</span>
       </legend>
       <p className="mt-1 text-xs text-slate-500">
-        Obrigatório informar Sim, Não ou Não informado para cada item.
+        Obrigatório informar Sim, Não ou Não informado para cada item,
+        incluindo os sintomas.
       </p>
       <div className="mt-3 space-y-4">
-        {SPECIAL_FLAG_FIELDS.map((field) => {
+        {SPECIAL_FLAG_FIELDS.map((field, index) => {
           const isPregnancy = field.name === "pregnancyStatus";
+          const showSymptomHeading =
+            field.group === "symptom" &&
+            SPECIAL_FLAG_FIELDS[index - 1]?.group !== "symptom";
           return (
             <div key={field.name}>
+              {showSymptomHeading ? (
+                <p className="mb-3 mt-2 text-sm font-semibold text-slate-800">
+                  Sintomas
+                </p>
+              ) : null}
               <p className="mb-1.5 text-sm font-medium text-slate-700">{field.label}</p>
               <div className="flex flex-wrap gap-4 text-sm">
                 {OPTIONS.map((option) => (

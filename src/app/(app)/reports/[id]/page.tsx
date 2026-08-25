@@ -155,9 +155,17 @@ export default async function ReportReviewPage({
       {changesRequested ? (
         <div className="mb-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
           <p className="font-semibold">REPROVADO — CORRIGIR PENDÊNCIAS</p>
-          <p className="mt-1 text-xs">
-            Veja o feedback em cada tópico abaixo e reenvie para aprovação. Se
-            precisar alterar medições ou dados clínicos do exame, volte à
+          {report.reviewNotes?.trim() ? (
+            <p className="mt-2 whitespace-pre-wrap text-sm">
+              {report.reviewNotes.trim()}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs">
+              Veja o feedback em cada tópico abaixo e reenvie para aprovação.
+            </p>
+          )}
+          <p className="mt-2 text-xs">
+            Se precisar alterar medições ou dados clínicos do exame, volte à
             conferência.
           </p>
         </div>
@@ -278,6 +286,7 @@ export default async function ReportReviewPage({
           includeHistogramChart={report.includeHistogramChart}
           includePieChart={report.includePieChart}
           includeTrendChart={report.includeTrendChart}
+          reviewNotes={report.reviewNotes}
           save={save}
           submit={submit}
           topics={topics}
@@ -454,6 +463,7 @@ function OperatorForm({
   includeHistogramChart,
   includePieChart,
   assistantDoctorName,
+  reviewNotes,
   save,
   submit,
 }: {
@@ -465,14 +475,36 @@ function OperatorForm({
   includeHistogramChart: boolean;
   includePieChart: boolean;
   assistantDoctorName: string | null;
+  reviewNotes: string | null;
   save: (formData: FormData) => void;
   submit: () => void;
 }) {
   const conclusion = topics.find((item) => item.key === "conclusion")?.value;
   const interpretationValue = conclusion || EMPTY_REPORT_TEXT;
+  const topicPendencies = topics.filter((topic) => topic.feedback);
+  const showPendencyPanel =
+    changesRequested &&
+    (Boolean(reviewNotes?.trim()) || topicPendencies.length > 0);
 
   return (
     <>
+      {showPendencyPanel ? (
+        <section className="mt-4 rounded-lg border border-red-300 bg-red-50 p-5 text-sm text-red-900">
+          <h2 className="font-semibold">Observação da reprovação</h2>
+          {reviewNotes?.trim() ? (
+            <p className="mt-2 whitespace-pre-wrap">{reviewNotes.trim()}</p>
+          ) : (
+            <ul className="mt-3 list-disc space-y-1 pl-5">
+              {topicPendencies.map((topic) => (
+                <li key={topic.key}>
+                  <span className="font-medium">{topic.label}:</span>{" "}
+                  {topic.feedback}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
       <form action={save} className="mt-4 space-y-4">
         <label className="block rounded-lg border border-slate-200 bg-white p-5 text-sm">
           <span className="font-semibold">Médico assistente</span>

@@ -159,14 +159,24 @@ export function SettingsForm({
 
       <OptionalSection
         defaultEnabled={thresholds.pressureLoadThresholds != null}
-        description="Percentual mínimo de medições acima do limiar para classificar carga elevada."
+        description="Carga elevada se o percentual de medições acima do limiar for ≥ 40% na vigília ou ≥ 50% no sono."
         enabledName="pressureLoadEnabled"
         title="Cargas pressóricas"
       >
         <Field
-          defaultValue={thresholds.pressureLoadThresholds?.elevatedPercent ?? 25}
-          label="Percentual elevado (%)"
-          name="pressureLoadElevatedPercent"
+          defaultValue={
+            thresholds.pressureLoadThresholds?.awakeElevatedPercent ?? 40
+          }
+          label="Vigília elevada a partir de (%)"
+          name="pressureLoadAwakeElevatedPercent"
+          type="number"
+        />
+        <Field
+          defaultValue={
+            thresholds.pressureLoadThresholds?.sleepElevatedPercent ?? 50
+          }
+          label="Sono elevada a partir de (%)"
+          name="pressureLoadSleepElevatedPercent"
           type="number"
         />
       </OptionalSection>

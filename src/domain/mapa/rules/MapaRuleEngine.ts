@@ -9,8 +9,9 @@ import {
 } from "./averagePressure";
 import { classifyOfficeVsMapa } from "./officeVsMapa";
 import { classifyNightDip } from "./nightDipping";
-import { isLoadElevated, roundPercent } from "./pressureLoad";
+import { isLoadElevated, pressureLoadCuts, roundPercent } from "./pressureLoad";
 import { computeValidMeasurementsPercentage } from "./technicalQuality";
+import { isOnCardiovascularMedication } from "../cvMedication";
 
 const AVG_24H_CODES: Record<string, string> = {
   BOTH_NORMAL: "AVG_24H_BOTH_NORMAL",
@@ -42,6 +43,7 @@ const OFFICE_VS_MAPA_CODES = {
   SUSTAINED_HYPERTENSION: "OFFICE_VS_MAPA_SUSTAINED",
   WHITE_COAT_HYPERTENSION: "OFFICE_VS_MAPA_WHITE_COAT",
   MASKED_HYPERTENSION: "OFFICE_VS_MAPA_MASKED",
+  CONTROLLED_HYPERTENSION: "OFFICE_VS_MAPA_CONTROLLED",
 } as const;
 
 const CONCLUSION_CODES = {
@@ -49,6 +51,7 @@ const CONCLUSION_CODES = {
   SUSTAINED_HYPERTENSION: "CONCLUSION_SUSTAINED",
   WHITE_COAT_HYPERTENSION: "CONCLUSION_WHITE_COAT",
   MASKED_HYPERTENSION: "CONCLUSION_MASKED",
+  CONTROLLED_HYPERTENSION: "CONCLUSION_CONTROLLED",
 } as const;
 
 export class MapaRuleEngine {
@@ -249,8 +252,7 @@ export class MapaRuleEngine {
   }
 
   private evaluatePressureLoad(data: MapaClinicalData): RuleResult[] {
-    const elevatedCut =
-      this.thresholds.pressureLoadThresholds?.elevatedPercent ?? 25;
+    const cuts = pressureLoadCuts(this.thresholds.pressureLoadThresholds);
 
     const awakeSys = data.awakeSystolicLoad;
     const awakeDia = data.awakeDiastolicLoad;
@@ -261,10 +263,10 @@ export class MapaRuleEngine {
       awakeSys != null || awakeDia != null || sleepSys != null || sleepDia != null;
     if (!hasAny) return [];
 
-    const awakeSysElev = isLoadElevated(awakeSys, elevatedCut);
-    const awakeDiaElev = isLoadElevated(awakeDia, elevatedCut);
-    const sleepSysElev = isLoadElevated(sleepSys, elevatedCut);
-    const sleepDiaElev = isLoadElevated(sleepDia, elevatedCut);
+    const awakeSysElev = isLoadElevated(awakeSys, cuts.awake);
+    const awakeDiaElev = isLoadElevated(awakeDia, cuts.awake);
+    const sleepSysElev = isLoadElevated(sleepSys, cuts.sleep);
+    const sleepDiaElev = isLoadElevated(sleepDia, cuts.sleep);
 
     const present = [
       awakeSys != null,
@@ -583,8 +585,12 @@ export class MapaRuleEngine {
     if (pregnancyYes) codes.add("PREGNANT");
     if (data.alcoholUse === "YES") codes.add("ALCOHOL");
     if (data.smoking === "YES") codes.add("SMOKING");
-    if (data.insomnia === "YES") codes.add("INSOMNIA");
     if (data.caffeineUse === "YES") codes.add("CAFFEINE");
+    if (data.headache === "YES") codes.add("HEADACHE");
+    if (data.insomnia === "YES") codes.add("INSOMNIA");
+    if (data.chestPain === "YES") codes.add("CHEST_PAIN");
+    if (data.dyspnea === "YES") codes.add("DYSPNEA");
+    if (data.dizziness === "YES") codes.add("DIZZINESS");
 
     const map: Record<string, { code: string; message: string }> = {
       PREGNANT: {
@@ -600,13 +606,29 @@ export class MapaRuleEngine {
         code: "SPECIAL_SMOKING",
         message: "Relato de tabagismo.",
       },
+      CAFFEINE: {
+        code: "SPECIAL_CAFFEINE",
+        message: "Relato de uso de cafeína.",
+      },
+      HEADACHE: {
+        code: "SPECIAL_HEADACHE",
+        message: "Relato de dores de cabeça.",
+      },
       INSOMNIA: {
         code: "SPECIAL_INSOMNIA",
         message: "Relato de insônia.",
       },
-      CAFFEINE: {
-        code: "SPECIAL_CAFFEINE",
-        message: "Relato de uso de cafeína.",
+      CHEST_PAIN: {
+        code: "SPECIAL_CHEST_PAIN",
+        message: "Relato de dores no peito.",
+      },
+      DYSPNEA: {
+        code: "SPECIAL_DYSPNEA",
+        message: "Relato de falta de ar.",
+      },
+      DIZZINESS: {
+        code: "SPECIAL_DIZZINESS",
+        message: "Relato de tontura.",
       },
       ORTHOSTATIC: {
         code: "SPECIAL_ORTHOSTATIC",
@@ -677,7 +699,7 @@ export class MapaRuleEngine {
       return pending;
     }
 
-    const classification = classifyOfficeVsMapa({
+    let classification = classifyOfficeVsMapa({
       officeSystolic: data.officeSystolicPressure!,
       officeDiastolic: data.officeDiastolicPressure!,
       mapaSystolic: data.avg24hSystolic!,
@@ -685,13 +707,20 @@ export class MapaRuleEngine {
       officeThresholds: this.thresholds.officeThresholds,
       mapaThresholds: this.thresholds.full24Hours,
     });
+    const onCvMedication = isOnCardiovascularMedication(data);
+    if (onCvMedication && classification === "NORMOTENSION") {
+      classification = "CONTROLLED_HYPERTENSION";
+    }
 
     const results: RuleResult[] = [
       {
         code: OFFICE_VS_MAPA_CODES[classification],
         category: "GENERAL_CONSIDERATION",
         status: "OK",
-        message: classification,
+        message:
+          classification === "CONTROLLED_HYPERTENSION"
+            ? "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório, em uso de medicação de efeito cardiovascular, são compatíveis com Hipertensão Arterial Controlada."
+            : classification,
       },
     ];
 
@@ -723,7 +752,10 @@ export class MapaRuleEngine {
         code: CONCLUSION_CODES[classification],
         category: "CONCLUSION",
         status: "OK",
-        message: classification,
+        message:
+          classification === "CONTROLLED_HYPERTENSION"
+            ? "Exame com valores compatíveis com Hipertensão Arterial Controlada, em uso de medicação de efeito cardiovascular."
+            : classification,
       });
     }
 
@@ -733,6 +765,15 @@ export class MapaRuleEngine {
         category: "CONCLUSION",
         status: "OK",
         message: "CONCLUSION_CONSIDER_STRESS_OR_MEDS",
+      });
+    }
+
+    if (onCvMedication && classification !== "CONTROLLED_HYPERTENSION") {
+      results.push({
+        code: "GENERAL_CONSIDER_CV_MEDS",
+        category: "CONCLUSION",
+        status: "OK",
+        message: "GENERAL_CONSIDER_CV_MEDS",
       });
     }
 

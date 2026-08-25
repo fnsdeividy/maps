@@ -10,7 +10,8 @@ export type MapaThresholds = {
   officeThresholds: PressurePair | null;
   significantlyElevatedThresholds: PressurePair | null;
   pressureLoadThresholds: {
-    elevatedPercent: number;
+    awakeElevatedPercent: number;
+    sleepElevatedPercent: number;
   } | null;
   nightDippingThresholds: {
     absentMax: number;
@@ -53,7 +54,8 @@ export const mapaThresholds: MapaThresholds = {
     diastolic: 100,
   },
   pressureLoadThresholds: {
-    elevatedPercent: 25,
+    awakeElevatedPercent: 40,
+    sleepElevatedPercent: 50,
   },
   nightDippingThresholds: {
     absentMax: 0,

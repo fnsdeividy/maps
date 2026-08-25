@@ -85,6 +85,9 @@ function PrintHeader({
           width={220}
         />
       </div>
+      <p className="mt-2 text-center text-[12px] font-semibold leading-tight">
+        Relatório de Monitorização Ambulatorial da Pressão Arterial (M.A.P.A)
+      </p>
       <div className="mt-3 border border-black text-[11px]">
         <div className="grid grid-cols-2 border-b border-black">
           <div className="border-r border-black px-2 py-1">

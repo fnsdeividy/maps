@@ -133,4 +133,25 @@ describe("produção com limiares padrão do roteiro", () => {
     );
     expect(results.some((item) => item.code === "GUIDELINE_FOOTER")).toBe(false);
   });
+
+  it("com medicação cardiovascular e MAPA normal conclui hipertensão controlada", () => {
+    const engine = new MapaRuleEngine();
+    const results = engine.evaluate({
+      currentMedications: "Losartana 50 mg",
+      cvMedicationStatus: "YES",
+      officeSystolicPressure: 120,
+      officeDiastolicPressure: 80,
+      avg24hSystolic: 120,
+      avg24hDiastolic: 70,
+    });
+    expect(results.some((item) => item.code === "CONCLUSION_CONTROLLED")).toBe(
+      true,
+    );
+    expect(
+      results.some((item) => item.code === "OFFICE_VS_MAPA_CONTROLLED"),
+    ).toBe(true);
+    expect(results.some((item) => item.code === "CONCLUSION_NORMOTENSION")).toBe(
+      false,
+    );
+  });
 });

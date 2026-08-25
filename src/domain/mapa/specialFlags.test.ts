@@ -5,21 +5,33 @@ import {
 } from "@/domain/mapa/specialFlags";
 
 describe("specialFlags", () => {
-  it("exige as cinco respostas", () => {
+  it("exige todas as respostas", () => {
     const form = new FormData();
     form.set("pregnancyStatus", "NO");
     form.set("alcoholUse", "YES");
     form.set("smoking", "UNKNOWN");
+    form.set("caffeineUse", "YES");
+    form.set("headache", "YES");
     form.set("insomnia", "NO");
+    form.set("chestPain", "NO");
+    form.set("dyspnea", "UNKNOWN");
     expect(readRequiredSpecialFlags(form)).toBeNull();
 
-    form.set("caffeineUse", "YES");
+    form.set("dizziness", "NO");
+    expect(readRequiredSpecialFlags(form)).toBeNull();
+
+    form.set("cvMedicationStatus", "YES");
     expect(readRequiredSpecialFlags(form)).toEqual({
       pregnancyStatus: "NO",
       alcoholUse: "YES",
       smoking: "UNKNOWN",
-      insomnia: "NO",
       caffeineUse: "YES",
+      headache: "YES",
+      insomnia: "NO",
+      chestPain: "NO",
+      dyspnea: "UNKNOWN",
+      dizziness: "NO",
+      cvMedicationStatus: "YES",
     });
   });
 
@@ -29,11 +41,16 @@ describe("specialFlags", () => {
         pregnancyStatus: "YES",
         alcoholUse: "NO",
         smoking: "UNKNOWN",
-        insomnia: "YES",
         caffeineUse: "NO",
+        headache: "YES",
+        insomnia: "YES",
+        chestPain: "NO",
+        dyspnea: "NO",
+        dizziness: "YES",
+        cvMedicationStatus: "YES",
       }),
     ).toBe(
-      "Gestante: sim. Uso de bebidas alcoólicas: não. Tabagismo: não informado. Insônia: sim. Uso de cafeína: não",
+      "Gestante: sim. Uso de bebidas alcoólicas: não. Tabagismo: não informado. Uso de cafeína: não. Dores de cabeça: sim. Insônia: sim. Dores no peito: não. Falta de ar: não. Tontura: sim. Medicação de efeito cardiovascular: sim",
     );
   });
 });

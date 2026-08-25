@@ -96,6 +96,43 @@ describe("cargas e descenso", () => {
     );
   });
 
+  it("vigília abaixo de 40% e sono abaixo de 50% são cargas normais", () => {
+    const engine = new MapaRuleEngine();
+    const results = engine.evaluate({
+      currentMedications: "",
+      awakeSystolicLoad: 39.9,
+      awakeDiastolicLoad: 20,
+      sleepSystolicLoad: 49.9,
+      sleepDiastolicLoad: 30,
+    });
+    expect(results.some((item) => item.code === "LOAD_BOTH_PERIODS_NORMAL")).toBe(
+      true,
+    );
+    expect(results.some((item) => item.code === "LOAD_AWAKE_SYS_ELEVATED")).toBe(
+      false,
+    );
+    expect(results.some((item) => item.code === "LOAD_SLEEP_SYS_ELEVATED")).toBe(
+      false,
+    );
+  });
+
+  it("sono a 50% já é carga elevada, vigília a 40% também", () => {
+    const engine = new MapaRuleEngine();
+    const results = engine.evaluate({
+      currentMedications: "",
+      awakeSystolicLoad: 40,
+      awakeDiastolicLoad: 10,
+      sleepSystolicLoad: 50,
+      sleepDiastolicLoad: 10,
+    });
+    expect(results.some((item) => item.code === "LOAD_AWAKE_SYS_ELEVATED")).toBe(
+      true,
+    );
+    expect(results.some((item) => item.code === "LOAD_SLEEP_SYS_ELEVATED")).toBe(
+      true,
+    );
+  });
+
   it("classifica descenso atenuado", () => {
     const engine = new MapaRuleEngine();
     const results = engine.evaluate({

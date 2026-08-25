@@ -147,6 +147,8 @@ const SYSTEM_PROMPT =
   "Para cada tópico recebe uma lista de frases candidatas com id e texto. " +
   "Escolha os ids das frases que melhor se enquadram no tópico (1 ou mais). " +
   "Se nenhuma frase se enquadrar, deixe 'codes' vazio e escreva uma frase técnica e objetiva em 'opinion'. " +
+  "Se o paciente usa medicação de efeito cardiovascular e as médias estão normais, " +
+  "a interpretação é hipertensão controlada — nunca normotensão verdadeira. " +
   "NUNCA invente números nem cite valores que não estejam nas frases fornecidas. " +
   "Não repita a mesma ideia. Responda apenas JSON no formato " +
   '{"<tópico>": {"codes": ["ID"], "opinion": ""}}.';

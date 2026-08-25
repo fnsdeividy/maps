@@ -16,7 +16,7 @@ const pendingDescriptions = [
   },
   {
     key: "pressureLoadThresholds",
-    label: "Limites de cargas pressóricas (normal vs elevada).",
+    label: "Limites de cargas pressóricas: vigília abaixo de 40% e sono abaixo de 50% são normais.",
   },
   {
     key: "nightDippingThresholds",

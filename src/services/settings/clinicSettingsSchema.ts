@@ -12,11 +12,32 @@ export const mapaThresholdsSchema = z.object({
   sleep: pressurePairSchema,
   officeThresholds: pressurePairSchema.nullable(),
   significantlyElevatedThresholds: pressurePairSchema.nullable(),
-  pressureLoadThresholds: z
-    .object({
-      elevatedPercent: z.coerce.number().min(0).max(100),
-    })
-    .nullable(),
+  pressureLoadThresholds: z.preprocess(
+    (value) => {
+      if (value == null) return null;
+      if (typeof value !== "object") return value;
+      const record = value as Record<string, unknown>;
+      if (
+        record.awakeElevatedPercent != null &&
+        record.sleepElevatedPercent != null
+      ) {
+        return {
+          awakeElevatedPercent: record.awakeElevatedPercent,
+          sleepElevatedPercent: record.sleepElevatedPercent,
+        };
+      }
+      return {
+        awakeElevatedPercent: 40,
+        sleepElevatedPercent: 50,
+      };
+    },
+    z
+      .object({
+        awakeElevatedPercent: z.coerce.number().min(0).max(100),
+        sleepElevatedPercent: z.coerce.number().min(0).max(100),
+      })
+      .nullable(),
+  ),
   nightDippingThresholds: z
     .object({
       absentMax: z.coerce.number(),
@@ -73,7 +94,8 @@ export function parseSettingsForm(formData: FormData): ClinicSettingsData {
     pressureLoadThresholds:
       formData.get("pressureLoadEnabled") === "on"
         ? {
-            elevatedPercent: formData.get("pressureLoadElevatedPercent"),
+            awakeElevatedPercent: formData.get("pressureLoadAwakeElevatedPercent"),
+            sleepElevatedPercent: formData.get("pressureLoadSleepElevatedPercent"),
           }
         : null,
     nightDippingThresholds:

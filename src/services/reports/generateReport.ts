@@ -20,6 +20,7 @@ import { formatTime } from "@/lib/dates";
 
 function toClinical(report: {
   currentMedications: string;
+  cvMedicationStatus: string;
   officeSystolicPressure: number | null;
   officeDiastolicPressure: number | null;
   officeHeartRate: number | null;
@@ -28,8 +29,12 @@ function toClinical(report: {
   pregnancyStatus: string;
   alcoholUse: string;
   smoking: string;
-  insomnia: string;
   caffeineUse: string;
+  insomnia: string;
+  headache: string;
+  chestPain: string;
+  dyspnea: string;
+  dizziness: string;
   totalMeasurements: number | null;
   validMeasurements: number | null;
   avg24hSystolic: number | null;
@@ -67,8 +72,13 @@ function toClinical(report: {
     pregnancyStatus: asFlag(report.pregnancyStatus),
     alcoholUse: asFlag(report.alcoholUse),
     smoking: asFlag(report.smoking),
-    insomnia: asFlag(report.insomnia),
     caffeineUse: asFlag(report.caffeineUse),
+    insomnia: asFlag(report.insomnia),
+    headache: asFlag(report.headache),
+    chestPain: asFlag(report.chestPain),
+    dyspnea: asFlag(report.dyspnea),
+    dizziness: asFlag(report.dizziness),
+    cvMedicationStatus: asFlag(report.cvMedicationStatus),
     specialSituations: special,
   };
 }
@@ -136,6 +146,15 @@ function buildClinicalContext(
     "PA consultório",
     numberPair(report.officeSystolicPressure, report.officeDiastolicPressure),
   );
+  if (report.cvMedicationStatus === "YES") {
+    add(
+      "Medicação cardiovascular",
+      "sim — valores pressóricos normais no MAPA indicam hipertensão controlada pelo medicamento, não normotensão verdadeira",
+    );
+    add("Medicações em uso", report.currentMedications);
+  } else if (report.cvMedicationStatus === "NO") {
+    add("Medicação cardiovascular", "não");
+  }
 
   return parts.join("; ") || "Sem dados numéricos disponíveis.";
 }

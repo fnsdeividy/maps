@@ -150,14 +150,19 @@ export interface ConfirmAwpImportInput {
   sleepStart?: string | null;
   sleepEnd?: string | null;
   currentMedications: string;
+  cvMedicationStatus: TriStateFlag;
   officeSystolicPressure: number | null;
   officeDiastolicPressure: number | null;
   officeHeartRate: number | null;
   pregnancyStatus: TriStateFlag;
   alcoholUse: TriStateFlag;
   smoking: TriStateFlag;
-  insomnia: TriStateFlag;
   caffeineUse: TriStateFlag;
+  insomnia: TriStateFlag;
+  headache: TriStateFlag;
+  chestPain: TriStateFlag;
+  dyspnea: TriStateFlag;
+  dizziness: TriStateFlag;
   pregnancyMonths: number | null;
   /** Observações clínicas por índice de medição. */
   observations?: Record<number, string>;
@@ -265,6 +270,7 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
     examDate,
     source: "FILE" as const,
     currentMedications: input.currentMedications,
+    cvMedicationStatus: input.cvMedicationStatus,
     officeSystolicPressure: input.officeSystolicPressure,
     officeDiastolicPressure: input.officeDiastolicPressure,
     officeHeartRate: input.officeHeartRate,
@@ -274,8 +280,12 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
     pregnancyStatus: input.pregnancyStatus,
     alcoholUse: input.alcoholUse,
     smoking: input.smoking,
-    insomnia: input.insomnia,
     caffeineUse: input.caffeineUse,
+    insomnia: input.insomnia,
+    headache: input.headache,
+    chestPain: input.chestPain,
+    dyspnea: input.dyspnea,
+    dizziness: input.dizziness,
     ...reportFieldsFromMetrics(metrics),
     specialSituations: "[]",
     includeTrendChart: input.includeTrendChart ?? true,

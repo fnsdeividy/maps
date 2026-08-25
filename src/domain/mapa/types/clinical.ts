@@ -26,6 +26,10 @@ export type SpecialSituationCode =
   | "SMOKING"
   | "INSOMNIA"
   | "CAFFEINE"
+  | "HEADACHE"
+  | "CHEST_PAIN"
+  | "DYSPNEA"
+  | "DIZZINESS"
   | "ORTHOSTATIC"
   | "NAP"
   | "POSTPRANDIAL"
@@ -36,6 +40,7 @@ export type TriStateClinicalFlag = "YES" | "NO" | "UNKNOWN";
 
 export type MapaClinicalData = {
   currentMedications: string;
+  cvMedicationStatus?: TriStateClinicalFlag | null;
   officeSystolicPressure?: number | null;
   officeDiastolicPressure?: number | null;
   officeHeartRate?: number | null;
@@ -44,8 +49,12 @@ export type MapaClinicalData = {
   pregnancyStatus?: TriStateClinicalFlag | null;
   alcoholUse?: TriStateClinicalFlag | null;
   smoking?: TriStateClinicalFlag | null;
-  insomnia?: TriStateClinicalFlag | null;
   caffeineUse?: TriStateClinicalFlag | null;
+  insomnia?: TriStateClinicalFlag | null;
+  headache?: TriStateClinicalFlag | null;
+  chestPain?: TriStateClinicalFlag | null;
+  dyspnea?: TriStateClinicalFlag | null;
+  dizziness?: TriStateClinicalFlag | null;
   totalMeasurements?: number | null;
   validMeasurements?: number | null;
   avg24hSystolic?: number | null;
@@ -73,7 +82,8 @@ export type OfficeVsMapaClassification =
   | "NORMOTENSION"
   | "SUSTAINED_HYPERTENSION"
   | "WHITE_COAT_HYPERTENSION"
-  | "MASKED_HYPERTENSION";
+  | "MASKED_HYPERTENSION"
+  | "CONTROLLED_HYPERTENSION";
 
 export type AveragePressureClass =
   | "BOTH_NORMAL"
