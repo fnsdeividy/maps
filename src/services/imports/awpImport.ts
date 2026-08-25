@@ -256,7 +256,7 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
     input.patientId,
     examDate,
   );
-  if (existing?.status === "APPROVED") {
+  if (existing?.active && existing.status === "APPROVED") {
     return {
       reportId: existing.id,
       metrics,
@@ -298,30 +298,30 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
   const keepReview =
     existing?.status === "CHANGES_REQUESTED" ||
     existing?.status === "PENDING_APPROVAL";
-  const report = existing
-    ? await prisma.mapaReport.update({
-        where: { id: existing.id },
-        data: {
-          ...clinical,
-          ...(keepReview
-            ? {}
-            : {
-                status: "DRAFT",
-                approvedAt: null,
-                submittedAt: null,
-                reviewNotes: null,
-                reviewNotesByTopic: "{}",
-              }),
-        },
-      })
-    : await prisma.mapaReport.create({
-        data: {
-          ...clinical,
-          status: "DRAFT",
-        },
-      });
+  const { report, existing: savedExisting } =
+    await reportRepository.saveForPatientExamDay({
+      patientId: input.patientId,
+      examDate,
+      create: {
+        ...clinical,
+        status: "DRAFT",
+      },
+      update: {
+        ...clinical,
+        ...(keepReview
+          ? {}
+          : {
+              status: "DRAFT",
+              approvedAt: null,
+              submittedAt: null,
+              reviewNotes: null,
+              reviewNotesByTopic: "{}",
+            }),
+      },
+    });
+  const reused = savedExisting ?? existing;
 
-  if (existing) {
+  if (reused) {
     await prisma.mapaSourceFile.updateMany({
       where: { reportId: report.id, id: { not: sourceFile.id } },
       data: { reportId: null },
@@ -346,7 +346,7 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
     },
   });
 
-  if (!existing) {
+  if (!reused) {
     await logReportEvent({ reportId: report.id, event: "REPORT_CREATED" });
   }
   await logReportEvent({ reportId: report.id, event: "FILE_IMPORTED" });

@@ -18,6 +18,9 @@ import {
 } from "@/services/imports/awpParseResultCodec";
 import { PatientResolutionError } from "@/services/patients/resolvePatientFromForm";
 import { prisma } from "@/lib/prisma";
+import { normalizeExamDate } from "@/lib/dates";
+import { isPrismaUniqueConflict } from "@/lib/prismaErrors";
+import { reportRepository } from "@/repositories/reportRepository";
 
 function num(formData: FormData, name: string): number | null {
   const value = formData.get(name);
@@ -123,36 +126,51 @@ export async function confirmAwpImportAction(sourceFileId: string, formData: For
     redirect(`/reports/import/${sourceFileId}?error=gestacao-meses`);
   }
 
-  const { reportId, keepStatus, locked } = await confirmAwpImport({
-    sourceFileId,
-    patientId,
-    examDate: new Date(examDateValue),
-    sleepStart: clock(formData, "sleepStart"),
-    sleepEnd: clock(formData, "sleepEnd"),
-    currentMedications: String(formData.get("currentMedications") ?? ""),
-    cvMedicationStatus: specialFlags.cvMedicationStatus,
-    officeSystolicPressure: num(formData, "officeSystolicPressure"),
-    officeDiastolicPressure: num(formData, "officeDiastolicPressure"),
-    officeHeartRate: num(formData, "officeHeartRate"),
-    pregnancyStatus: specialFlags.pregnancyStatus,
-    alcoholUse: specialFlags.alcoholUse,
-    smoking: specialFlags.smoking,
-    insomnia: specialFlags.insomnia,
-    caffeineUse: specialFlags.caffeineUse,
-    headache: specialFlags.headache,
-    chestPain: specialFlags.chestPain,
-    dyspnea: specialFlags.dyspnea,
-    dizziness: specialFlags.dizziness,
-    pregnancyMonths: num(formData, "pregnancyMonths"),
-    observations: readObservations(formData),
-    discardedIndexes: readDiscardedIndexes(formData),
-    includeTrendChart: bool(formData, "includeTrendChart"),
-    includeHistogramChart: bool(formData, "includeHistogramChart"),
-    includePieChart: bool(formData, "includePieChart"),
-    assistantDoctorName:
-      String(formData.get("assistantDoctorName") ?? "").trim() || null,
-    createdById: user.id,
-  });
+  let imported;
+  try {
+    imported = await confirmAwpImport({
+      sourceFileId,
+      patientId,
+      examDate: new Date(examDateValue),
+      sleepStart: clock(formData, "sleepStart"),
+      sleepEnd: clock(formData, "sleepEnd"),
+      currentMedications: String(formData.get("currentMedications") ?? ""),
+      cvMedicationStatus: specialFlags.cvMedicationStatus,
+      officeSystolicPressure: num(formData, "officeSystolicPressure"),
+      officeDiastolicPressure: num(formData, "officeDiastolicPressure"),
+      officeHeartRate: num(formData, "officeHeartRate"),
+      pregnancyStatus: specialFlags.pregnancyStatus,
+      alcoholUse: specialFlags.alcoholUse,
+      smoking: specialFlags.smoking,
+      insomnia: specialFlags.insomnia,
+      caffeineUse: specialFlags.caffeineUse,
+      headache: specialFlags.headache,
+      chestPain: specialFlags.chestPain,
+      dyspnea: specialFlags.dyspnea,
+      dizziness: specialFlags.dizziness,
+      pregnancyMonths: num(formData, "pregnancyMonths"),
+      observations: readObservations(formData),
+      discardedIndexes: readDiscardedIndexes(formData),
+      includeTrendChart: bool(formData, "includeTrendChart"),
+      includeHistogramChart: bool(formData, "includeHistogramChart"),
+      includePieChart: bool(formData, "includePieChart"),
+      assistantDoctorName:
+        String(formData.get("assistantDoctorName") ?? "").trim() || null,
+      createdById: user.id,
+    });
+  } catch (error) {
+    if (isPrismaUniqueConflict(error)) {
+      const existing = await reportRepository.findByPatientAndExamDay(
+        patientId,
+        normalizeExamDate(new Date(examDateValue)),
+      );
+      if (existing) redirect(`/reports/${existing.id}`);
+      redirect(`/reports/import/${sourceFileId}?error=laudo-existente`);
+    }
+    throw error;
+  }
+
+  const { reportId, keepStatus, locked } = imported;
 
   if (locked) {
     redirect(`/reports/${reportId}`);

@@ -48,11 +48,15 @@ export function MeasurementObservationTable({
     });
   }
 
+  const listed = measurements.filter(
+    (measurement) => measurement.valid || measurement.discarded,
+  );
+
   return (
     <section className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
       <div className="border-b border-slate-100 px-5 py-3">
         <h2 className="text-sm font-semibold">
-          Medições ({measurements.length})
+          Medições ({listed.length} de {measurements.length})
         </h2>
         <p className="mt-1 text-xs text-slate-500">
           Você pode registrar uma observação clínica em cada medição ou
@@ -75,7 +79,7 @@ export function MeasurementObservationTable({
             </tr>
           </thead>
           <tbody>
-            {measurements.map((measurement) => {
+            {listed.map((measurement) => {
               const discarded = Boolean(measurement.discarded);
               const usable = measurement.valid && !discarded;
               return (

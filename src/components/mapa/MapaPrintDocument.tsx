@@ -824,20 +824,19 @@ export function MapaPrintDocument({
         </article>
       ) : null}
 
-      {/* Dados medidos — todas as medições do exame */}
+      {/* Dados medidos — páginas próprias para caber logo, título e cabeçalho */}
       {measurements.length > 0 ? (
-        <article className="print-page mx-auto mt-8 max-w-[210mm] bg-white p-6 print:mt-0 print:p-0">
-          <PrintHeader {...headerProps} />
-          <SectionTitle>Dados medidos</SectionTitle>
-          <PrintMeasurementsTable
-            editable={canEditMeasurements}
-            measurements={measurements}
-            reportId={reportId}
-          />
-          <p className="mt-8 text-center text-[10px] text-slate-600">
-            Este relatório somente pode ser usado para referência clínica
-          </p>
-        </article>
+        <PrintMeasurementsTable
+          editable={canEditMeasurements}
+          header={
+            <>
+              <PrintHeader {...headerProps} />
+              <SectionTitle>Dados medidos</SectionTitle>
+            </>
+          }
+          measurements={measurements}
+          reportId={reportId}
+        />
       ) : null}
 
       {/* Última página — comentários, conclusão e assinaturas */}

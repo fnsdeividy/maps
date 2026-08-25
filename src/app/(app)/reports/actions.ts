@@ -128,33 +128,38 @@ export async function createAndGenerateReport(formData: FormData) {
     createdById: user.id,
   };
 
-  const report = existing
-    ? await prisma.mapaReport.update({
-        where: { id: existing.id },
-        data: {
-          ...clinical,
-          status: "DRAFT",
-          approvedAt: null,
-          submittedAt: null,
-          reviewNotes: null,
-          reviewNotesByTopic: "{}",
-        },
-      })
-    : await prisma.mapaReport.create({
-        data: {
-          ...clinical,
-          status: "DRAFT",
-        },
-      });
-
-  if (!existing) {
-    await logReportEvent({ reportId: report.id, event: "REPORT_CREATED" });
+  if (existing?.active && existing.status === "APPROVED") {
+    redirect(
+      `/reports/${existing.id}?error=${encodeURIComponent(
+        "Já existe um laudo aprovado deste paciente nesta data de exame.",
+      )}`,
+    );
   }
 
-  await generateReportContent(report.id);
+  const saved = await reportRepository.saveForPatientExamDay({
+    patientId,
+    examDate,
+    create: {
+      ...clinical,
+      status: "DRAFT",
+    },
+    update: {
+      ...clinical,
+      status: "DRAFT",
+      approvedAt: null,
+      submittedAt: null,
+      reviewNotes: null,
+      reviewNotesByTopic: "{}",
+    },
+  });
+  if (!saved.existing) {
+    await logReportEvent({ reportId: saved.report.id, event: "REPORT_CREATED" });
+  }
+
+  await generateReportContent(saved.report.id);
   revalidatePath("/reports");
   revalidatePath("/dashboard");
-  redirect(`/reports/${report.id}`);
+  redirect(`/reports/${saved.report.id}`);
 }
 
 /** Enquanto o laudo aguarda aprovação, só o aprovador pode alterá-lo. */

@@ -7,7 +7,7 @@ import { Field } from "@/components/Field";
 import { MeasurementObservationTable } from "@/components/MeasurementObservationTable";
 import { MedicationFields } from "@/components/MedicationFields";
 import { SpecialSituationFlags } from "@/components/SpecialSituationFlags";
-import { formatDate, formatDateTime, formatTime, toInputDate } from "@/lib/dates";
+import { formatDate, formatDateTime, toInputDate } from "@/lib/dates";
 import {
   formatFileSize,
   formatInteger,
@@ -90,7 +90,6 @@ export default async function AwpImportPreviewPage({
       }
     : undefined;
   const schedule = result.schedule;
-  const invalidMeasurements = result.measurements.filter((measurement) => !measurement.valid);
 
   const chartPoints = result.measurements
     .filter((measurement) => measurement.valid)
@@ -113,7 +112,9 @@ export default async function AwpImportPreviewPage({
           ? "Preencha a data do exame."
           : error === "paciente-ausente"
             ? "Paciente não vinculado à análise."
-            : null;
+            : error === "laudo-existente"
+              ? "Já existe um laudo deste paciente nesta data de exame."
+              : null;
 
   return (
     <div className="max-w-7xl">
@@ -269,24 +270,6 @@ export default async function AwpImportPreviewPage({
           <dt className="text-slate-500">Inválidas</dt>
           <dd>{formatInteger(metrics.invalidMeasurements)}</dd>
         </dl>
-        {invalidMeasurements.length > 0 ? (
-          <details className="mt-3">
-            <summary className="cursor-pointer text-amber-800">
-              {formatInteger(invalidMeasurements.length)} medições inválidas
-            </summary>
-            <ul className="mt-2 space-y-1 text-xs text-amber-900">
-              {invalidMeasurements.map((measurement) => (
-                <li key={measurement.index}>
-                  {formatTime(measurement.measuredAt)} —{" "}
-                  {measurement.invalidReason ??
-                    measurement.deviceComment ??
-                    measurement.errorCode ??
-                    "inválida"}
-                </li>
-              ))}
-            </ul>
-          </details>
-        ) : null}
       </section>
 
       <section className="mt-4 rounded-lg border border-slate-200 bg-white p-5 text-sm">
