@@ -75,7 +75,7 @@ export default async function PrintReportPage({
         : null;
 
   return (
-    <div className="min-h-screen bg-slate-200 print:bg-white">
+    <div className="min-h-screen bg-slate-200 print:min-h-0 print:bg-white">
       <PrintToolbar preview={approverPreview} />
       {isApprover(role) && approved ? (
         <div className="mx-auto max-w-[210mm] px-4 pt-4 print:hidden">

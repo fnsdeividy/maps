@@ -394,7 +394,7 @@ export function BpTimeChart({
   );
 
   return (
-    <figure className={isPrint ? "print-keep w-full" : "w-full overflow-x-auto"}>
+    <figure className={isPrint ? "w-full" : "w-full overflow-x-auto"}>
       <svg
         className="h-auto w-full"
         role="img"

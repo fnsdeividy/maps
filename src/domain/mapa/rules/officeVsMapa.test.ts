@@ -50,6 +50,19 @@ describe("office vs MAPA", () => {
     ).toBe("MASKED_HYPERTENSION");
   });
 
+  it("consultório elevado + MAPA 129,6 (exibido 130) não vira avental branco", () => {
+    expect(
+      classifyOfficeVsMapa({
+        officeSystolic: 150,
+        officeDiastolic: 95,
+        mapaSystolic: 129.6,
+        mapaDiastolic: 70,
+        officeThresholds,
+        mapaThresholds: mapa,
+      }),
+    ).toBe("SUSTAINED_HYPERTENSION");
+  });
+
   it("consultório elevado + MAPA elevado", () => {
     expect(
       classifyOfficeVsMapa({

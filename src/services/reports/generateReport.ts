@@ -17,6 +17,7 @@ import { logReportEvent } from "@/services/audit/log";
 import { getClinicSettings } from "@/services/settings/clinicSettings";
 import { deserializeParseResult } from "@/services/imports/awpParseResultCodec";
 import { formatTime } from "@/lib/dates";
+import { roundMmHg } from "@/domain/mapa/rules/averagePressure";
 
 function toClinical(report: {
   currentMedications: string;
@@ -127,9 +128,9 @@ function buildClinicalContext(
   };
 
   add("Válidas %", percentage != null ? Math.round(percentage) : null);
-  add("Médias 24h", numberPair(report.avg24hSystolic, report.avg24hDiastolic));
-  add("Vigília", numberPair(report.awakeSystolic, report.awakeDiastolic));
-  add("Sono", numberPair(report.sleepSystolic, report.sleepDiastolic));
+  add("Médias 24h", mmHgPair(report.avg24hSystolic, report.avg24hDiastolic));
+  add("Vigília", mmHgPair(report.awakeSystolic, report.awakeDiastolic));
+  add("Sono", mmHgPair(report.sleepSystolic, report.sleepDiastolic));
   add(
     "Cargas vigília S/D",
     numberPair(report.awakeSystolicLoad, report.awakeDiastolicLoad),
@@ -144,7 +145,7 @@ function buildClinicalContext(
   );
   add(
     "PA consultório",
-    numberPair(report.officeSystolicPressure, report.officeDiastolicPressure),
+    mmHgPair(report.officeSystolicPressure, report.officeDiastolicPressure),
   );
   if (report.cvMedicationStatus === "YES") {
     add(
@@ -162,6 +163,11 @@ function buildClinicalContext(
 function numberPair(a: number | null, b: number | null): string | null {
   if (a == null && b == null) return null;
   return `${a ?? "—"}/${b ?? "—"}`;
+}
+
+function mmHgPair(a: number | null, b: number | null): string | null {
+  if (a == null && b == null) return null;
+  return `${a != null ? roundMmHg(a) : "—"}/${b != null ? roundMmHg(b) : "—"}`;
 }
 
 function isFilledSection(text?: string | null): boolean {

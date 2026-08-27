@@ -79,16 +79,16 @@ function PrintHeader({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           alt="Amacor"
-          className="h-14 w-auto object-contain"
+          className="h-14 w-auto object-contain print:h-10"
           height={56}
           src="/logo.png"
           width={220}
         />
       </div>
-      <p className="mt-2 text-center text-[12px] font-semibold leading-tight">
+      <p className="mt-2 text-center text-[12px] font-semibold leading-tight print:mt-1">
         Relatório de Monitorização Ambulatorial da Pressão Arterial (M.A.P.A)
       </p>
-      <div className="mt-3 border border-black text-[11px]">
+      <div className="mt-3 border border-black text-[11px] print:mt-2">
         <div className="grid grid-cols-2 border-b border-black">
           <div className="border-r border-black px-2 py-1">
             <span className="font-semibold">Nome do paciente:</span> {patientName}
@@ -233,10 +233,10 @@ function StatsTable({
   ] as const;
 
   return (
-    <section className="print-keep mt-4 text-[10px]">
+    <section className="print-stats mt-3 text-[10px]">
       <p className="font-semibold">{title}</p>
       <p className="mb-1">{countLabel}</p>
-      <table className="w-full border-collapse">
+      <table className="print-stats-table w-full border-collapse">
         <thead>
           <tr className="border-b border-black text-left">
             <th className="py-1 pr-2" />
@@ -253,19 +253,19 @@ function StatsTable({
         <tbody>
           {rows.map(([label, series]) => (
             <tr className="border-b border-slate-300" key={label}>
-              <td className="py-1 pr-2 font-medium">{label}</td>
-              <td className="py-1 pr-2">{formatInteger(series.max?.value)}</td>
-              <td className="py-1 pr-2">
+              <td className="py-0.5 pr-2 font-medium">{label}</td>
+              <td className="py-0.5 pr-2">{formatInteger(series.max?.value)}</td>
+              <td className="py-0.5 pr-2">
                 {series.max?.at ? formatTime(series.max.at) : "—"}
               </td>
-              <td className="py-1 pr-2">{formatInteger(series.min?.value)}</td>
-              <td className="py-1 pr-2">
+              <td className="py-0.5 pr-2">{formatInteger(series.min?.value)}</td>
+              <td className="py-0.5 pr-2">
                 {series.min?.at ? formatTime(series.min.at) : "—"}
               </td>
-              <td className="py-1 pr-2">{formatNumber(series.mean)}</td>
-              <td className="py-1 pr-2">{formatNumber(series.sd)}</td>
-              <td className="py-1 pr-2">{formatNumber(series.se)}</td>
-              <td className="py-1">
+              <td className="py-0.5 pr-2">{formatInteger(series.mean)}</td>
+              <td className="py-0.5 pr-2">{formatNumber(series.sd)}</td>
+              <td className="py-0.5 pr-2">{formatNumber(series.se)}</td>
+              <td className="py-0.5">
                 {series.cv != null ? `${formatNumber(series.cv)}%` : "—"}
               </td>
             </tr>
@@ -768,7 +768,7 @@ export function MapaPrintDocument({
             />
           ) : null}
 
-          <p className="mt-8 text-center text-[10px] text-slate-600">
+          <p className="mt-4 text-center text-[10px] text-slate-600">
             Este relatório somente pode ser usado para referência clínica
           </p>
         </article>

@@ -364,7 +364,7 @@ function ApproverPreLaudo({
       <form action={save} id="approver-edit-form" />
 
       {/* Layout real do laudo (como sairá na impressão), com edição embutida. */}
-      <section className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-slate-100 p-4">
+      <section className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-slate-100 p-4 print:overflow-visible print:border-0 print:bg-white print:p-0">
         <MapaPrintDocument
           assistantDoctorName={report.assistantDoctorName}
           awpPatient={printModel.awpPatient}

@@ -356,7 +356,7 @@ export function BpPieCharts({
   const isPrint = variant === "print";
 
   return (
-    <figure className={isPrint ? "print-keep w-full" : "w-full"}>
+    <figure className={isPrint ? "w-full" : "w-full"}>
       <figcaption
         className={
           isPrint

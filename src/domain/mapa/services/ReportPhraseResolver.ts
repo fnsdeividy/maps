@@ -15,6 +15,9 @@ function interpolate(
   return template.replace(/\{(\w+)\}/g, (_, key: string) => {
     const value = values[key];
     if (value == null || Number.isNaN(value)) return `{${key}}`;
+    if (key === "systolic" || key === "diastolic") {
+      return String(Math.round(value));
+    }
     if (Number.isInteger(value)) return String(value);
     return String(Math.round(value * 10) / 10);
   });

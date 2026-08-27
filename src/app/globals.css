@@ -21,23 +21,36 @@ body {
 
   html,
   body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
     background: white !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
+  .min-h-screen {
+    min-height: 0 !important;
+  }
+
+  /*
+    Quebra ANTES da próxima folha, não DEPOIS da atual.
+    page-break-after: always numa folha que já transbordou gera página em branco.
+  */
   .print-page {
-    break-after: page;
-    page-break-after: always;
+    break-after: auto;
+    page-break-after: auto;
+    break-inside: auto;
+    page-break-inside: auto;
     box-shadow: none !important;
     margin: 0 !important;
     max-width: none !important;
     padding: 0 !important;
   }
 
-  .print-page:last-child {
-    break-after: auto;
-    page-break-after: auto;
+  .print-page + .print-page {
+    break-before: page;
+    page-break-before: always;
   }
 
   .print-keep {
@@ -55,15 +68,18 @@ body {
     page-break-inside: avoid;
   }
 
+  .mapa-print .print-stats-table,
   .mapa-print .print-measurements-table {
     break-inside: auto;
     page-break-inside: auto;
   }
 
+  .mapa-print .print-stats-table thead,
   .mapa-print .print-measurements-table thead {
     display: table-header-group;
   }
 
+  .mapa-print .print-stats-table tr,
   .mapa-print .print-measurements-table tr {
     break-inside: avoid;
     page-break-inside: avoid;
@@ -71,19 +87,17 @@ body {
 
   .mapa-print img,
   .mapa-print svg {
-    break-inside: avoid;
-    page-break-inside: avoid;
     max-width: 100%;
   }
 
   .mapa-print p {
-    orphans: 3;
-    widows: 3;
+    orphans: 2;
+    widows: 2;
   }
 
   @page {
     size: A4;
-    margin: 10mm;
+    margin: 8mm;
   }
 }
 

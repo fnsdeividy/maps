@@ -9,15 +9,25 @@ export type AveragePressureClassExtended =
 
 type ComponentLevel = "NORMAL" | "ELEVATED" | "SIGNIFICANT";
 
+/**
+ * Médias de PA no laudo usam mmHg inteiro — o mesmo número do quadro
+ * "Resultado dos exames". Sem isso, 134,7 aparece como 135 e a regra
+ * trata como normal (< 135).
+ */
+export function roundMmHg(value: number): number {
+  return Math.round(value);
+}
+
 function componentLevel(
   value: number,
   elevatedThreshold: number,
   significantThreshold?: number,
 ): ComponentLevel {
-  if (significantThreshold != null && value >= significantThreshold) {
+  const mmHg = roundMmHg(value);
+  if (significantThreshold != null && mmHg >= significantThreshold) {
     return "SIGNIFICANT";
   }
-  if (value >= elevatedThreshold) return "ELEVATED";
+  if (mmHg >= elevatedThreshold) return "ELEVATED";
   return "NORMAL";
 }
 
@@ -26,8 +36,8 @@ export function classifyAveragePressure(
   diastolic: number,
   threshold: PressurePair,
 ): AveragePressureClass {
-  const sysElevated = systolic >= threshold.systolic;
-  const diaElevated = diastolic >= threshold.diastolic;
+  const sysElevated = roundMmHg(systolic) >= threshold.systolic;
+  const diaElevated = roundMmHg(diastolic) >= threshold.diastolic;
 
   if (sysElevated && diaElevated) return "BOTH_ELEVATED";
   if (sysElevated) return "SYS_ELEVATED";
@@ -74,5 +84,8 @@ export function isPressureElevated(
   diastolic: number,
   threshold: PressurePair,
 ): boolean {
-  return systolic >= threshold.systolic || diastolic >= threshold.diastolic;
+  return (
+    roundMmHg(systolic) >= threshold.systolic ||
+    roundMmHg(diastolic) >= threshold.diastolic
+  );
 }

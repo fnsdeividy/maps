@@ -243,7 +243,7 @@ export function BpHistogramCharts({
   const isPrint = variant === "print";
 
   return (
-    <figure className={isPrint ? "print-keep" : "space-y-4"}>
+    <figure className={isPrint ? "w-full" : "space-y-4"}>
       <figcaption
         className={
           isPrint

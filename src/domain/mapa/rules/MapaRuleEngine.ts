@@ -6,6 +6,7 @@ import type { MapaClinicalData, RuleResult } from "../types/clinical";
 import {
   classifyAveragePressure,
   classifyAveragePressure24h,
+  roundMmHg,
 } from "./averagePressure";
 import { classifyOfficeVsMapa } from "./officeVsMapa";
 import { classifyNightDip } from "./nightDipping";
@@ -204,8 +205,8 @@ export class MapaRuleEngine {
         status: "OK",
         message: `24h:${klass}`,
         values: {
-          systolic: data.avg24hSystolic,
-          diastolic: data.avg24hDiastolic,
+          systolic: roundMmHg(data.avg24hSystolic),
+          diastolic: roundMmHg(data.avg24hDiastolic),
         },
       });
     }
@@ -227,7 +228,10 @@ export class MapaRuleEngine {
         category: "AVERAGE_PRESSURE",
         status: "OK",
         message: `${period}:${klass}`,
-        values: { systolic, diastolic },
+        values: {
+          systolic: roundMmHg(systolic),
+          diastolic: roundMmHg(diastolic),
+        },
       });
 
       if (klass === "SYS_ELEVATED") {
@@ -726,7 +730,7 @@ export class MapaRuleEngine {
 
     const awakeSysElevated =
       data.awakeSystolic != null &&
-      data.awakeSystolic >= this.thresholds.awake.systolic;
+      roundMmHg(data.awakeSystolic) >= this.thresholds.awake.systolic;
 
     const dippingAbnormal = this.hasAbnormalNightDipping(data);
 

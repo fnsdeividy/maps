@@ -7,7 +7,7 @@ export function listPrintMeasurements<T extends { valid: boolean }>(
 }
 
 export function chunkRows<T>(rows: T[], size: number): T[][] {
-  if (rows.length === 0) return [[]];
+  if (rows.length === 0) return [];
   const pages: T[][] = [];
   for (let index = 0; index < rows.length; index += size) {
     pages.push(rows.slice(index, index + size));
