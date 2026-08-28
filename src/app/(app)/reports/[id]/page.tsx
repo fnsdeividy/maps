@@ -12,6 +12,7 @@ import {
 import { SECTION_CATEGORY } from "@/services/ai/AiPhraseSelectionService";
 import { getSigningDoctor } from "@/lib/signingDoctor";
 import { buildReportPrintModel } from "@/services/reports/printModel";
+import { buildDeterministicDraft } from "@/services/reports/generateReport";
 import {
   approveReportAction,
   deleteReportAction,
@@ -63,23 +64,6 @@ export default async function ReportReviewPage({
   const importHref =
     !approved && importFileId ? `/reports/import/${importFileId}` : null;
 
-  const topics = REPORT_TOPICS.map((topic) => {
-    const raw =
-      (report[topic.field as keyof typeof report] as string | null) ?? "";
-    const value =
-      topic.key === "conclusion"
-        ? interpretationDisplayText(
-            report.generatedGeneralConsiderations,
-            raw,
-          ) || raw
-        : raw;
-    return {
-      ...topic,
-      value,
-      feedback: topicFeedback[topic.key],
-    };
-  });
-
   // Operador não altera laudo que está na mesa do aprovador nem laudo aprovado.
   const canEdit = !approved && !approverView && !pendingApproval;
   const save = updateReportSections.bind(null, report.id);
@@ -95,6 +79,34 @@ export default async function ReportReviewPage({
   const printModel = preLaudo
     ? await buildReportPrintModel(report.id, { showAllCharts: true })
     : null;
+  const numericDraft = printModel
+    ? printModel.narrative
+    : await buildDeterministicDraft(report);
+
+  const topics = REPORT_TOPICS.map((topic) => {
+    const stored =
+      (report[topic.field as keyof typeof report] as string | null) ?? "";
+    const engineOwned =
+      topic.key === "averagePressure" ||
+      topic.key === "pressureLoad" ||
+      topic.key === "nightDipping";
+    const raw = engineOwned
+      ? (numericDraft[topic.key] ?? stored)
+      : stored;
+    const value =
+      topic.key === "conclusion"
+        ? interpretationDisplayText(
+            report.generatedGeneralConsiderations,
+            raw,
+          ) || raw
+        : raw;
+    return {
+      ...topic,
+      value,
+      feedback: topicFeedback[topic.key],
+    };
+  });
+
   const signingDoctor = await getSigningDoctor();
   const doctorName = signingDoctor.name;
   const doctorRqe = signingDoctor.rqe;
@@ -131,6 +143,7 @@ export default async function ReportReviewPage({
           return (
             matchesTopic &&
             phrase.code !== "GUIDELINE_FOOTER" &&
+            phrase.code !== "GENERAL_CONSIDER_CV_MEDS" &&
             !/\{[a-zA-Z]+\}/.test(phrase.text)
           );
         })

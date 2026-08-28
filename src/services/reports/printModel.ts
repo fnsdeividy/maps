@@ -5,6 +5,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { deserializeParseResult } from "@/services/imports/awpParseResultCodec";
 import { getClinicSettings } from "@/services/settings/clinicSettings";
+import { buildDeterministicDraft } from "@/services/reports/generateReport";
 
 type ManualStatsInput = {
   examDate: Date;
@@ -203,6 +204,8 @@ export async function buildReportPrintModel(
     stats = statsFromManualReport(report);
   }
 
+  const draft = await buildDeterministicDraft(report);
+
   return {
     report,
     guidelineNote: guidelineFooter,
@@ -218,10 +221,10 @@ export async function buildReportPrintModel(
     narrative: {
       medications: report.generatedMedications,
       technicalComments: report.generatedTechnicalComments,
-      averagePressure: report.generatedResults,
-      pressureLoad: report.generatedPressureLoad,
+      averagePressure: draft.averagePressure,
+      pressureLoad: draft.pressureLoad,
       pressurePeaks: report.generatedPressurePeaks,
-      nightDipping: report.generatedNightDipping,
+      nightDipping: draft.nightDipping,
       specialSituations: report.generatedSpecialSituations,
       generalConsiderations: report.generatedGeneralConsiderations,
       conclusion: report.generatedConclusion,

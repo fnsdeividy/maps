@@ -1,8 +1,9 @@
 import OpenAI from "openai";
 import type { PhraseCategory, RuleResult } from "@/domain/mapa/types/clinical";
 import type { StructuredReportSections } from "@/domain/mapa/types/report";
+import { composeInterpretationPhrases, phrasesOf } from "@/domain/mapa/interpretation";
 
-export const AI_SELECTION_PROMPT_VERSION = "mapa-select-v1";
+export const AI_SELECTION_PROMPT_VERSION = "mapa-select-v2";
 
 type Resolved = RuleResult & { text: string };
 
@@ -79,6 +80,8 @@ export function buildCandidates(
 
   for (const item of resolved) {
     if (item.code === "GUIDELINE_FOOTER") continue;
+    if (item.code === "GENERAL_CONSIDER_CV_MEDS") continue;
+    if (item.code.startsWith("OFFICE_VS_MAPA_")) continue;
     const category =
       item.category === "GENERAL_CONSIDERATION" ? "CONCLUSION" : item.category;
     push(category, { code: item.code, text: item.text });
@@ -87,6 +90,8 @@ export function buildCandidates(
   for (const phrase of catalog) {
     if (!phrase.active) continue;
     if (phrase.code === "GUIDELINE_FOOTER") continue;
+    if (phrase.code === "GENERAL_CONSIDER_CV_MEDS") continue;
+    if (phrase.code.startsWith("OFFICE_VS_MAPA_")) continue;
     if (hasUnresolvedPlaceholder(phrase.text)) continue;
 
     if (phrase.category === "GENERAL_CONSIDERATION") {
@@ -127,15 +132,27 @@ export function mergeSelection(
     const byCode = new Map(
       (candidates[category] ?? []).map((c) => [c.code, c.text]),
     );
-    const separator = " ";
-    const texts = (picked.codes ?? [])
+    const pickedCodes = (picked.codes ?? []).filter((code) => {
+      if (code === "GENERAL_CONSIDER_CV_MEDS") return false;
+      if (!code.startsWith("OFFICE_VS_MAPA_")) return true;
+      return !(picked.codes ?? []).some((item) => item.startsWith("CONCLUSION_"));
+    });
+    const texts = pickedCodes
       .map((code) => byCode.get(code))
       .filter((text): text is string => Boolean(text?.trim()));
 
     if (texts.length > 0) {
-      result[key] = texts.join(separator);
+      const merged =
+        key === "conclusion"
+          ? composeInterpretationPhrases(texts)
+          : texts.join("\n\n");
+      if (merged) result[key] = merged;
     } else if (picked.opinion?.trim()) {
-      result[key] = picked.opinion.trim();
+      const opinion =
+        key === "conclusion"
+          ? composeInterpretationPhrases(phrasesOf(picked.opinion.trim()))
+          : picked.opinion.trim();
+      if (opinion) result[key] = opinion;
     }
   }
 
@@ -149,8 +166,11 @@ const SYSTEM_PROMPT =
   "Se nenhuma frase se enquadrar, deixe 'codes' vazio e escreva uma frase técnica e objetiva em 'opinion'. " +
   "Se o paciente usa medicação de efeito cardiovascular e as médias estão normais, " +
   "a interpretação é hipertensão controlada — nunca normotensão verdadeira. " +
+  "Use a medicação só na classificação; não escreva no laudo frases como " +
+  "'considerar o uso de medicamentos de efeito cardiovascular'. " +
   "NUNCA invente números nem cite valores que não estejam nas frases fornecidas. " +
-  "Não repita a mesma ideia. Responda apenas JSON no formato " +
+  "Não repita a mesma ideia: se já houver uma frase CONCLUSION_*, não escolha OFFICE_VS_MAPA_*. " +
+  "Separe ideias distintas; o sistema já quebra em parágrafos. Responda apenas JSON no formato " +
   '{"<tópico>": {"codes": ["ID"], "opinion": ""}}.';
 
 export type AiSelectionResult = {

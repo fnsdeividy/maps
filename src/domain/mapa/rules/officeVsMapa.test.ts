@@ -167,4 +167,22 @@ describe("produção com limiares padrão do roteiro", () => {
       false,
     );
   });
+
+  it("com medicação cardiovascular e MAPA elevado não escreve o lembrete no laudo", () => {
+    const engine = new MapaRuleEngine();
+    const results = engine.evaluate({
+      currentMedications: "Maleato de enalapril 10mg",
+      cvMedicationStatus: "YES",
+      officeSystolicPressure: 180,
+      officeDiastolicPressure: 80,
+      avg24hSystolic: 131,
+      avg24hDiastolic: 70,
+    });
+    expect(results.some((item) => item.code === "CONCLUSION_SUSTAINED")).toBe(
+      true,
+    );
+    expect(
+      results.some((item) => item.code === "GENERAL_CONSIDER_CV_MEDS"),
+    ).toBe(false);
+  });
 });

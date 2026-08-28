@@ -19,9 +19,13 @@ import { deserializeParseResult } from "@/services/imports/awpParseResultCodec";
 import { formatTime } from "@/lib/dates";
 import { roundMmHg } from "@/domain/mapa/rules/averagePressure";
 
+function roundNullableMmHg(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  return roundMmHg(value);
+}
+
 function toClinical(report: {
   currentMedications: string;
-  cvMedicationStatus: string;
   officeSystolicPressure: number | null;
   officeDiastolicPressure: number | null;
   officeHeartRate: number | null;
@@ -32,10 +36,11 @@ function toClinical(report: {
   smoking: string;
   caffeineUse: string;
   insomnia: string;
-  headache: string;
-  chestPain: string;
-  dyspnea: string;
-  dizziness: string;
+  cvMedicationStatus?: string | null;
+  headache?: string | null;
+  chestPain?: string | null;
+  dyspnea?: string | null;
+  dizziness?: string | null;
   totalMeasurements: number | null;
   validMeasurements: number | null;
   avg24hSystolic: number | null;
@@ -65,7 +70,7 @@ function toClinical(report: {
     special = [];
   }
 
-  const asFlag = (value: string) =>
+  const asFlag = (value?: string | null) =>
     value === "YES" || value === "NO" || value === "UNKNOWN" ? value : "UNKNOWN";
 
   return {
@@ -81,6 +86,14 @@ function toClinical(report: {
     dizziness: asFlag(report.dizziness),
     cvMedicationStatus: asFlag(report.cvMedicationStatus),
     specialSituations: special,
+    officeSystolicPressure: roundNullableMmHg(report.officeSystolicPressure),
+    officeDiastolicPressure: roundNullableMmHg(report.officeDiastolicPressure),
+    avg24hSystolic: roundNullableMmHg(report.avg24hSystolic),
+    avg24hDiastolic: roundNullableMmHg(report.avg24hDiastolic),
+    awakeSystolic: roundNullableMmHg(report.awakeSystolic),
+    awakeDiastolic: roundNullableMmHg(report.awakeDiastolic),
+    sleepSystolic: roundNullableMmHg(report.sleepSystolic),
+    sleepDiastolic: roundNullableMmHg(report.sleepDiastolic),
   };
 }
 
@@ -150,7 +163,7 @@ function buildClinicalContext(
   if (report.cvMedicationStatus === "YES") {
     add(
       "Medicação cardiovascular",
-      "sim — valores pressóricos normais no MAPA indicam hipertensão controlada pelo medicamento, não normotensão verdadeira",
+      "sim — classificar hipertensão controlada se o MAPA estiver normal; não citar medicação na interpretação",
     );
     add("Medicações em uso", report.currentMedications);
   } else if (report.cvMedicationStatus === "NO") {
@@ -220,6 +233,20 @@ function sanitizeSelection(selection: SelectionByCategory): SelectionByCategory 
   return safe;
 }
 
+type ClinicalReportInput = Parameters<typeof toClinical>[0];
+
+/** Frases numéricas (médias, cargas, descenso) a partir das regras atuais. */
+export async function buildDeterministicDraft(report: ClinicalReportInput) {
+  const phrases = await prisma.reportPhrase.findMany({
+    where: { active: true },
+  });
+  const { thresholds, guidelineFooter } = await getClinicSettings();
+  const resolved = new ReportPhraseResolver(phrases).resolve(
+    new MapaRuleEngine(thresholds).evaluate(toClinical(report)),
+  );
+  return new DeterministicReportBuilder(guidelineFooter).build(resolved);
+}
+
 export async function generateReportContent(
   reportId: string,
   options: { keepStatus?: boolean } = {},
@@ -233,10 +260,8 @@ export async function generateReportContent(
     where: { active: true },
   });
 
-  const clinical = toClinical(report);
   const { thresholds, guidelineFooter } = await getClinicSettings();
-  const engine = new MapaRuleEngine(thresholds);
-  const results = engine.evaluate(clinical);
+  const results = new MapaRuleEngine(thresholds).evaluate(toClinical(report));
   await logReportEvent({ reportId, event: "RULES_PROCESSED" });
 
   const resolver = new ReportPhraseResolver(phrases);

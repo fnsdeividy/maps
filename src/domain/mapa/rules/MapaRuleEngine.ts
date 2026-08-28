@@ -772,15 +772,6 @@ export class MapaRuleEngine {
       });
     }
 
-    if (onCvMedication && classification !== "CONTROLLED_HYPERTENSION") {
-      results.push({
-        code: "GENERAL_CONSIDER_CV_MEDS",
-        category: "CONCLUSION",
-        status: "OK",
-        message: "GENERAL_CONSIDER_CV_MEDS",
-      });
-    }
-
     return results;
   }
 

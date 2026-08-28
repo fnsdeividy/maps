@@ -10,7 +10,13 @@ function joinCategory(items: Resolved[], category: PhraseCategory): string {
     .filter((item) => item.category === category && item.code !== "GUIDELINE_FOOTER")
     .map((item) => item.text)
     .filter(Boolean)
-    .join(category === "MEDICATION" ? "\n" : " ");
+    .join(
+      category === "MEDICATION"
+        ? "\n"
+        : category === "CONCLUSION"
+          ? "\n\n"
+          : " ",
+    );
 }
 
 export class DeterministicReportBuilder {

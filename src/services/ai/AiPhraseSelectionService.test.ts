@@ -67,6 +67,53 @@ describe("buildCandidates", () => {
     },
   ];
 
+  it("não oferece o lembrete de medicação cardiovascular como candidato", () => {
+    const withReminder: Resolved[] = [
+      {
+        code: "CONCLUSION_SUSTAINED",
+        category: "CONCLUSION",
+        message: "SUSTAINED",
+        text: "Exame com valores compatíveis com Hipertensão Arterial Sustentada.",
+      },
+      {
+        code: "GENERAL_CONSIDER_CV_MEDS",
+        category: "CONCLUSION",
+        message: "CV_MEDS",
+        text: "Considerar o uso de medicamentos de efeito cardiovascular.",
+      },
+    ];
+    const candidates = buildCandidates(withReminder, [
+      {
+        code: "GENERAL_CONSIDER_CV_MEDS",
+        category: "GENERAL_CONSIDERATION",
+        text: "Considerar o uso de medicamentos de efeito cardiovascular.",
+        active: true,
+      },
+    ]);
+    const conclusionCodes = (candidates.CONCLUSION ?? []).map((c) => c.code);
+    expect(conclusionCodes).toEqual(["CONCLUSION_SUSTAINED"]);
+  });
+
+  it("não oferece a frase consultório × MAPA junto com a conclusão", () => {
+    const resolvedWithBoth: Resolved[] = [
+      {
+        code: "OFFICE_VS_MAPA_SUSTAINED",
+        category: "GENERAL_CONSIDERATION",
+        message: "SUSTAINED",
+        text: "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Sustentada.",
+      },
+      {
+        code: "CONCLUSION_SUSTAINED",
+        category: "CONCLUSION",
+        message: "SUSTAINED",
+        text: "Exame com valores compatíveis com Hipertensão Arterial Sustentada.",
+      },
+    ];
+    const candidates = buildCandidates(resolvedWithBoth, []);
+    const conclusionCodes = (candidates.CONCLUSION ?? []).map((c) => c.code);
+    expect(conclusionCodes).toEqual(["CONCLUSION_SUSTAINED"]);
+  });
+
   it("não amplia conclusão pelo catálogo (só o que o motor resolveu)", () => {
     const candidates = buildCandidates(resolved, catalog);
     const conclusionCodes = (candidates.CONCLUSION ?? []).map((c) => c.code);
@@ -121,12 +168,61 @@ describe("mergeSelection", () => {
     expect(result.conclusion).toBe("Hipertensão Sustentada.");
   });
 
+  it("não repete consultório × MAPA quando já há conclusão diagnóstica", () => {
+    const withOffice = {
+      CONCLUSION: [
+        {
+          code: "OFFICE_VS_MAPA_SUSTAINED",
+          text: "Os valores das médias pressóricas são compatíveis com Hipertensão Arterial Sustentada.",
+        },
+        {
+          code: "CONCLUSION_SUSTAINED",
+          text: "Exame com valores compatíveis com Hipertensão Arterial Sustentada.",
+        },
+        {
+          code: "GENERAL_CONSIDER_CV_MEDS",
+          text: "Considerar o uso de medicamentos de efeito cardiovascular.",
+        },
+      ],
+    };
+    const result = mergeSelection(
+      withOffice,
+      {
+        CONCLUSION: {
+          codes: [
+            "OFFICE_VS_MAPA_SUSTAINED",
+            "CONCLUSION_SUSTAINED",
+            "GENERAL_CONSIDER_CV_MEDS",
+          ],
+        },
+      },
+      deterministic(),
+    );
+    expect(result.conclusion).toBe(
+      "Exame com valores compatíveis com Hipertensão Arterial Sustentada.",
+    );
+  });
+
   it("usa a opinião quando não há códigos escolhidos", () => {
     const selection: SelectionByCategory = {
       CONCLUSION: { codes: [], opinion: "Acompanhamento clínico." },
     };
     const result = mergeSelection(candidates, selection, deterministic());
     expect(result.conclusion).toBe("Acompanhamento clínico.");
+  });
+
+  it("omite o lembrete de medicação da opinião da IA", () => {
+    const selection: SelectionByCategory = {
+      CONCLUSION: {
+        codes: [],
+        opinion:
+          "Exame com valores compatíveis com Hipertensão Arterial Sustentada. Considerar o uso de medicamentos de efeito cardiovascular.",
+      },
+    };
+    const result = mergeSelection(candidates, selection, deterministic());
+    expect(result.conclusion).toBe(
+      "Exame com valores compatíveis com Hipertensão Arterial Sustentada.",
+    );
   });
 
   it("mantém o determinístico quando a IA não escolhe nem opina", () => {

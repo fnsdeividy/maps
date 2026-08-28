@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TOPIC_FEEDBACK_PREFIX } from "@/domain/mapa/reportTopics";
 
 export function ApproverTopicEditor({
@@ -21,6 +21,10 @@ export function ApproverTopicEditor({
   rejectFormId: string;
 }) {
   const [text, setText] = useState(value);
+
+  useEffect(() => {
+    setText(value);
+  }, [value]);
 
   return (
     <div className="print:hidden mt-2 space-y-2">

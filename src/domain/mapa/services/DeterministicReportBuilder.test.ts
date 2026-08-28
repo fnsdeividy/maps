@@ -46,4 +46,36 @@ describe("laudo determinístico sem OpenAI", () => {
       "Diretriz Brasileira de Hipertensão Arterial",
     );
   });
+
+  it("classifica vigília 134,6 como 135 elevada, não como normal", () => {
+    const engine = new MapaRuleEngine();
+    const results = engine.evaluate({
+      currentMedications: "Maleato de enalapril 10mg",
+      cvMedicationStatus: "YES",
+      avg24hSystolic: 130.7,
+      avg24hDiastolic: 70.2,
+      awakeSystolic: 134.6,
+      awakeDiastolic: 74,
+      sleepSystolic: 117.6,
+      sleepDiastolic: 57.3,
+      officeSystolicPressure: 180,
+      officeDiastolicPressure: 80,
+    });
+    const sections = new DeterministicReportBuilder().build(
+      new ReportPhraseResolver(
+        REPORT_PHRASES.map((phrase) => ({ ...phrase, active: true })),
+      ).resolve(results),
+    );
+
+    expect(sections.averagePressure).toContain("135/74");
+    expect(sections.averagePressure).toMatch(/Vigília[\s\S]*elevada/i);
+    expect(sections.averagePressure).not.toMatch(
+      /Vigília[\s\S]*estão normais: 134/,
+    );
+    expect(sections.averagePressure).toContain("131/70");
+    expect(sections.conclusion).toMatch(/Hipertensão Arterial Sustentada/i);
+    expect(sections.conclusion).not.toMatch(
+      /considerar o uso de medicamentos de efeito cardiovascular/i,
+    );
+  });
 });
