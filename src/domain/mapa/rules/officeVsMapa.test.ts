@@ -178,8 +178,11 @@ describe("produção com limiares padrão do roteiro", () => {
       avg24hSystolic: 131,
       avg24hDiastolic: 70,
     });
+    expect(
+      results.some((item) => item.code === "CONCLUSION_SUSTAINED_UNCONTROLLED"),
+    ).toBe(true);
     expect(results.some((item) => item.code === "CONCLUSION_SUSTAINED")).toBe(
-      true,
+      false,
     );
     expect(
       results.some((item) => item.code === "GENERAL_CONSIDER_CV_MEDS"),

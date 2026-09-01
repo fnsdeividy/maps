@@ -3,7 +3,7 @@ import type { PhraseCategory, RuleResult } from "@/domain/mapa/types/clinical";
 import type { StructuredReportSections } from "@/domain/mapa/types/report";
 import { composeInterpretationPhrases, phrasesOf } from "@/domain/mapa/interpretation";
 
-export const AI_SELECTION_PROMPT_VERSION = "mapa-select-v2";
+export const AI_SELECTION_PROMPT_VERSION = "mapa-select-v4";
 
 type Resolved = RuleResult & { text: string };
 
@@ -39,7 +39,7 @@ export const SECTION_CATEGORY: Record<
  * (ex.: a média do Sono). Medicações são factuais e situações especiais só
  * entram quando declaradas, então também ficam fora da seleção da IA.
  */
-const AI_COMPOSED_CATEGORIES: PhraseCategory[] = ["CONCLUSION"];
+export const AI_COMPOSED_CATEGORIES: PhraseCategory[] = ["CONCLUSION"];
 
 /**
  * Categorias restritas ao que o motor já resolveu (nunca amplia pelo catálogo).
@@ -159,16 +159,22 @@ export function mergeSelection(
   return result;
 }
 
-const SYSTEM_PROMPT =
+export const SYSTEM_PROMPT =
   "Você seleciona frases padronizadas de laudo MAPA (aferição ambulatorial de PA). " +
   "Para cada tópico recebe uma lista de frases candidatas com id e texto. " +
   "Escolha os ids das frases que melhor se enquadram no tópico (1 ou mais). " +
   "Se nenhuma frase se enquadrar, deixe 'codes' vazio e escreva uma frase técnica e objetiva em 'opinion'. " +
   "Se o paciente usa medicação de efeito cardiovascular e as médias estão normais, " +
   "a interpretação é hipertensão controlada — nunca normotensão verdadeira. " +
+  "Se usa essa medicação e o MAPA permanece elevado, a interpretação é hipertensão não controlada. " +
   "Use a medicação só na classificação; não escreva no laudo frases como " +
   "'considerar o uso de medicamentos de efeito cardiovascular'. " +
-  "NUNCA invente números nem cite valores que não estejam nas frases fornecidas. " +
+  "Não recalcule nenhuma métrica numérica. Utilize exatamente os valores fornecidos pelo sistema. " +
+  "Não altere percentuais. Não estime valores. Não derive novas médias. " +
+  "Não transforme valores baixos em altos ou vice-versa. " +
+  "Sua função é redigir o laudo utilizando os indicadores calculados pelo sistema. " +
+  "NUNCA invente números nem cite valores que não estejam nas frases ou no contexto fornecidos. " +
+  "Se o contexto informar carga pressórica de 12,5%, o texto deve usar 12,5% — nunca outro percentual. " +
   "Não repita a mesma ideia: se já houver uma frase CONCLUSION_*, não escolha OFFICE_VS_MAPA_*. " +
   "Separe ideias distintas; o sistema já quebra em parágrafos. Responda apenas JSON no formato " +
   '{"<tópico>": {"codes": ["ID"], "opinion": ""}}.';

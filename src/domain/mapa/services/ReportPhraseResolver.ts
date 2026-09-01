@@ -31,7 +31,6 @@ export class ReportPhraseResolver {
       "MED_CUSTOM",
       "PEAK_NOTES",
       "MED_OFFICE_BP",
-      "MED_PREGNANCY",
     ]);
 
     return results.map((result) => {

@@ -33,11 +33,12 @@ describe("laudo determinístico sem OpenAI", () => {
 
     expect(sections.medications).toContain("Bisoprolol");
     expect(sections.medications).toContain("PA de Consultório");
+    expect(sections.medications).toMatch(/BE, sentado:/);
     expect(sections.medications).toMatch(/120\/80/);
     expect(sections.technicalComments).toContain("qualidade técnica satisfatória");
     expect(sections.technicalComments).toContain("76");
     expect(sections.averagePressure).toContain("127/70");
-    expect(sections.averagePressure).toContain("normal");
+    expect(sections.averagePressure).toContain("normais");
     expect(sections.pressureLoad).toContain("Vigília e no Sono normais");
     expect(sections.nightDipping).toContain("normais");
     expect(sections.conclusion).toContain("Normotensão Arterial Verdadeira");
@@ -73,7 +74,13 @@ describe("laudo determinístico sem OpenAI", () => {
       /Vigília[\s\S]*estão normais: 134/,
     );
     expect(sections.averagePressure).toContain("131/70");
-    expect(sections.conclusion).toMatch(/Hipertensão Arterial Sustentada/i);
+    expect(sections.averagePressure).toMatch(/levemente elevada/i);
+    expect(sections.medications).toContain(
+      "Uso de medicações de efeito cardiovascular.",
+    );
+    expect(sections.conclusion).toMatch(
+      /Hipertensão Arterial Sustentada Não Controlada/i,
+    );
     expect(sections.conclusion).not.toMatch(
       /considerar o uso de medicamentos de efeito cardiovascular/i,
     );

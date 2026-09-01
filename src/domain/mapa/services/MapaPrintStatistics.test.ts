@@ -44,5 +44,26 @@ describe("MapaPrintStatistics", () => {
     expect(stats.durationLabel).toMatch(/^\d{2}:\d{2}:\d{2}$/);
     expect(stats.cvOverallSystolic).not.toBeNull();
     expect(stats.awakeSystolicLoad).not.toBeNull();
+    expect(stats.awake?.label).toBe("Vigília");
+    expect(stats.sleep?.label).toBe("Sono");
+  });
+
+  it("usa a mesma carga pressórica do calculador (vigília e sono isolados)", () => {
+    const measurements = [
+      m(1, 10, 0, 140, 90),
+      m(2, 14, 0, 120, 70),
+      m(3, 23, 0, 130, 80),
+      m(4, 3, 0, 100, 60),
+    ];
+    const stats = buildMapaPrintStatistics(measurements, mapaThresholds, {
+      start: "22:00",
+      end: "06:00",
+    });
+
+    expect(stats.overall.systolicLoadPercent).toBe(50); // 2/4 ≥ 130
+    expect(stats.awakeSystolicLoad).toBe(50); // 1/2 ≥ 135
+    expect(stats.sleepSystolicLoad).toBe(50); // 1/2 ≥ 120
+    expect(stats.awakeDiastolicLoad).toBe(50); // 1/2 ≥ 85
+    expect(stats.sleepDiastolicLoad).toBe(50); // 1/2 ≥ 70
   });
 });

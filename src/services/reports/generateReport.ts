@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import { buildClinicalContext } from "@/services/reports/clinicalContext";
 import { MapaRuleEngine } from "@/domain/mapa/rules/MapaRuleEngine";
 import { ReportPhraseResolver } from "@/domain/mapa/services/ReportPhraseResolver";
 import { DeterministicReportBuilder } from "@/domain/mapa/services/DeterministicReportBuilder";
+import { MapaMetricsCalculator } from "@/domain/mapa/services/MapaMetricsCalculator";
+import type { MapaThresholds } from "@/domain/mapa/config/thresholds";
 import { computeValidMeasurementsPercentage } from "@/domain/mapa/rules/technicalQuality";
 import type { MapaClinicalData, SpecialSituationCode } from "@/domain/mapa/types/clinical";
 import type { StructuredReportSections } from "@/domain/mapa/types/report";
@@ -16,8 +19,11 @@ import { estimateCost } from "@/services/ai/pricing";
 import { logReportEvent } from "@/services/audit/log";
 import { getClinicSettings } from "@/services/settings/clinicSettings";
 import { deserializeParseResult } from "@/services/imports/awpParseResultCodec";
-import { formatTime } from "@/lib/dates";
 import { roundMmHg } from "@/domain/mapa/rules/averagePressure";
+import {
+  buildOfficialPeakNarrative,
+  peakFlagPhrasesFrom,
+} from "@/domain/mapa/rules/pressurePeaks";
 
 function roundNullableMmHg(value: number | null | undefined): number | null {
   if (value == null || !Number.isFinite(value)) return null;
@@ -129,70 +135,8 @@ function sectionsToDb(sections: Partial<StructuredReportSections>) {
   };
 }
 
-/** Resumo clínico compacto para orientar a seleção de frases pela IA. */
-function buildClinicalContext(
-  report: Parameters<typeof toClinical>[0],
-  percentage: number | null,
-): string {
-  const parts: string[] = [];
-  const add = (label: string, value: unknown) => {
-    if (value === null || value === undefined || value === "") return;
-    parts.push(`${label}: ${value}`);
-  };
-
-  add("Válidas %", percentage != null ? Math.round(percentage) : null);
-  add("Médias 24h", mmHgPair(report.avg24hSystolic, report.avg24hDiastolic));
-  add("Vigília", mmHgPair(report.awakeSystolic, report.awakeDiastolic));
-  add("Sono", mmHgPair(report.sleepSystolic, report.sleepDiastolic));
-  add(
-    "Cargas vigília S/D",
-    numberPair(report.awakeSystolicLoad, report.awakeDiastolicLoad),
-  );
-  add(
-    "Cargas sono S/D",
-    numberPair(report.sleepSystolicLoad, report.sleepDiastolicLoad),
-  );
-  add(
-    "Descenso S/D",
-    numberPair(report.systolicNightDipping, report.diastolicNightDipping),
-  );
-  add(
-    "PA consultório",
-    mmHgPair(report.officeSystolicPressure, report.officeDiastolicPressure),
-  );
-  if (report.cvMedicationStatus === "YES") {
-    add(
-      "Medicação cardiovascular",
-      "sim — classificar hipertensão controlada se o MAPA estiver normal; não citar medicação na interpretação",
-    );
-    add("Medicações em uso", report.currentMedications);
-  } else if (report.cvMedicationStatus === "NO") {
-    add("Medicação cardiovascular", "não");
-  }
-
-  return parts.join("; ") || "Sem dados numéricos disponíveis.";
-}
-
-function numberPair(a: number | null, b: number | null): string | null {
-  if (a == null && b == null) return null;
-  return `${a ?? "—"}/${b ?? "—"}`;
-}
-
-function mmHgPair(a: number | null, b: number | null): string | null {
-  if (a == null && b == null) return null;
-  return `${a != null ? roundMmHg(a) : "—"}/${b != null ? roundMmHg(b) : "—"}`;
-}
-
-function isFilledSection(text?: string | null): boolean {
-  const value = text?.trim();
-  return Boolean(value) && value !== "Não informado.";
-}
-
-/**
- * Relaciona o pico pressórico ao horário do maior valor medido e ao que o
- * paciente relatou (observação/atividade) naquele momento, quando houver.
- */
-function buildMeasuredPeakDetail(
+function applyMeasuredPeaks(
+  pressurePeaks: string,
   measurements: Array<{
     measuredAt: Date;
     systolic: number;
@@ -200,19 +144,12 @@ function buildMeasuredPeakDetail(
     valid: boolean;
     observation?: string | null;
   }>,
+  sleepWindow: { start: string; end: string } | null,
 ): string {
-  const valid = measurements.filter((m) => m.valid);
-  if (valid.length === 0) return "";
-
-  const peak = valid.reduce((max, item) =>
-    item.systolic > max.systolic ? item : max,
-  );
-  const time = formatTime(peak.measuredAt);
-  const base = `Maior valor pressórico registrado: ${peak.systolic}/${peak.diastolic} mmHg às ${time}`;
-  const observation = peak.observation?.trim();
-  return observation
-    ? `${base}, durante relato de "${observation}".`
-    : `${base}.`;
+  const official = buildOfficialPeakNarrative(measurements, sleepWindow);
+  if (!official) return pressurePeaks;
+  const flags = peakFlagPhrasesFrom(pressurePeaks);
+  return [official, ...flags].join("\n");
 }
 
 /**
@@ -231,6 +168,41 @@ function sanitizeSelection(selection: SelectionByCategory): SelectionByCategory 
     safe[category] = { codes: topic.codes ?? [], opinion };
   }
   return safe;
+}
+
+function overallLoadsFromSource(
+  sourceFile:
+    | {
+        payloadJson?: string | null;
+        sleepStart?: string | null;
+        sleepEnd?: string | null;
+      }
+    | null
+    | undefined,
+  thresholds: MapaThresholds,
+): { overallSystolicLoad: number | null; overallDiastolicLoad: number | null } {
+  if (!sourceFile?.payloadJson) {
+    return { overallSystolicLoad: null, overallDiastolicLoad: null };
+  }
+  try {
+    const parsed = deserializeParseResult(sourceFile.payloadJson);
+    const sleepWindow =
+      sourceFile.sleepStart && sourceFile.sleepEnd
+        ? { start: sourceFile.sleepStart, end: sourceFile.sleepEnd }
+        : parsed.sleepWindow
+          ? { start: parsed.sleepWindow.start, end: parsed.sleepWindow.end }
+          : null;
+    const metrics = new MapaMetricsCalculator(thresholds).calculate(
+      parsed.measurements,
+      sleepWindow,
+    );
+    return {
+      overallSystolicLoad: metrics.overall?.systolicLoad ?? null,
+      overallDiastolicLoad: metrics.overall?.diastolicLoad ?? null,
+    };
+  } catch {
+    return { overallSystolicLoad: null, overallDiastolicLoad: null };
+  }
 }
 
 type ClinicalReportInput = Parameters<typeof toClinical>[0];
@@ -281,7 +253,8 @@ export async function generateReportContent(
   // (e só opina qualitativamente se nenhuma servir). Números nunca vêm da IA:
   // saem sempre das frases já resolvidas pelo motor determinístico.
   const candidates = buildCandidates(resolved, phrases);
-  const context = buildClinicalContext(report, percentage);
+  const overallLoads = overallLoadsFromSource(report.sourceFile, thresholds);
+  const context = buildClinicalContext({ ...report, ...overallLoads }, percentage);
   const selector = new AiPhraseSelectionService();
   const hasCandidates = Object.keys(candidates).length > 0;
 
@@ -333,18 +306,30 @@ export async function generateReportContent(
     await logReportEvent({ reportId, event: "FALLBACK_USED" });
   }
 
-  // Quando há picos e arquivo AWP, relaciona o pico ao horário do maior valor
-  // medido e à atividade relatada (observação da medição) naquele momento.
-  if (isFilledSection(sections.pressurePeaks) && report.sourceFile?.payloadJson) {
+  // Picos no formato do roteiro: maior PAS/PAD na vigília e no sono, com sintoma.
+  if (report.sourceFile?.payloadJson) {
     try {
       const parsed = deserializeParseResult(report.sourceFile.payloadJson);
-      const detail = buildMeasuredPeakDetail(parsed.measurements);
-      if (detail && !sections.pressurePeaks.includes(detail)) {
-        sections = {
-          ...sections,
-          pressurePeaks: `${sections.pressurePeaks} ${detail}`.trim(),
-        };
-      }
+      const sleepWindow =
+        report.sourceFile.sleepStart && report.sourceFile.sleepEnd
+          ? {
+              start: report.sourceFile.sleepStart,
+              end: report.sourceFile.sleepEnd,
+            }
+          : parsed.sleepWindow
+            ? {
+                start: parsed.sleepWindow.start,
+                end: parsed.sleepWindow.end,
+              }
+            : null;
+      sections = {
+        ...sections,
+        pressurePeaks: applyMeasuredPeaks(
+          sections.pressurePeaks,
+          parsed.measurements,
+          sleepWindow,
+        ),
+      };
     } catch {
       // Sem detalhe do pico se o payload não puder ser lido.
     }

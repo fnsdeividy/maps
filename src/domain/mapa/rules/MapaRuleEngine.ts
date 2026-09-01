@@ -74,34 +74,30 @@ export class MapaRuleEngine {
   private evaluateMedications(data: MapaClinicalData): RuleResult[] {
     const results: RuleResult[] = [];
     const meds = data.currentMedications?.trim();
+    const onCvMedication = isOnCardiovascularMedication(data);
 
-    if (!meds) {
+    if (onCvMedication) {
+      results.push({
+        code: "MED_CV_EFFECT",
+        category: "MEDICATION",
+        status: "OK",
+        message: "Uso de medicações de efeito cardiovascular.",
+      });
+    }
+
+    if (!meds && !onCvMedication) {
       results.push({
         code: "MED_NONE",
         category: "MEDICATION",
         status: "OK",
         message: "Não há relato de uso de medicações durante o exame.",
       });
-    } else {
+    } else if (meds) {
       results.push({
         code: "MED_CUSTOM",
         category: "MEDICATION",
         status: "OK",
         message: meds,
-      });
-    }
-
-    if (data.pregnancyStatus === "YES" || data.pregnancy) {
-      results.push({
-        code: "MED_PREGNANCY",
-        category: "MEDICATION",
-        status: "OK",
-        message: data.pregnancyMonths
-          ? `Gestante de ${data.pregnancyMonths} meses.`
-          : "Gestante.",
-        values: data.pregnancyMonths
-          ? { months: data.pregnancyMonths }
-          : undefined,
       });
     }
 
@@ -119,7 +115,7 @@ export class MapaRuleEngine {
       code: "MED_OFFICE_BP",
       category: "MEDICATION",
       status: "OK",
-      message: `PA de Consultório: BE sentado: ${officeSys}/${officeDia} mmHg. FC: ${hrLabel}.`,
+      message: `PA de Consultório: BE, sentado: ${officeSys}/${officeDia} mmHg. FC: ${hrLabel}.`,
       values: {
         officeSystolic: data.officeSystolicPressure ?? Number.NaN,
         officeDiastolic: data.officeDiastolicPressure ?? Number.NaN,
@@ -166,7 +162,7 @@ export class MapaRuleEngine {
         code: "TECH_COMPROMISED",
         category: "TECHNICAL_QUALITY",
         status: "OK",
-        message: `Procedimento de qualidade técnica comprometida devido ao número total de medições válidas (${data.validMeasurements}) estar abaixo do limite para validação do método.`,
+        message: `Procedimento de qualidade técnica comprometida devido ao número total de medições (${data.validMeasurements}) válidas estar abaixo do limite para validação do método.`,
         values: {
           validMeasurements: data.validMeasurements,
           validPercentage: rounded,
@@ -297,6 +293,12 @@ export class MapaRuleEngine {
             category: "PRESSURE_LOAD",
             status: "OK",
             message: "Cargas pressóricas na Vigília e no Sono normais.",
+            values: {
+              awakeSys: roundPercent(awakeSys),
+              awakeDia: roundPercent(awakeDia),
+              sleepSys: roundPercent(sleepSys),
+              sleepDia: roundPercent(sleepDia),
+            },
           },
         ];
       }
@@ -353,6 +355,10 @@ export class MapaRuleEngine {
         category: "PRESSURE_LOAD",
         status: "OK",
         message: "Cargas pressóricas sistólica e diastólica normais na Vigília.",
+        values: {
+          sys: roundPercent(awakeSys),
+          dia: roundPercent(awakeDia),
+        },
       });
     }
 
@@ -368,6 +374,10 @@ export class MapaRuleEngine {
         category: "PRESSURE_LOAD",
         status: "OK",
         message: "Cargas pressóricas sistólica e diastólica normais no Sono.",
+        values: {
+          sys: roundPercent(sleepSys),
+          dia: roundPercent(sleepDia),
+        },
       });
     }
 
@@ -383,6 +393,10 @@ export class MapaRuleEngine {
         category: "PRESSURE_LOAD",
         status: "OK",
         message: "Cargas pressóricas sistólicas normais na Vigília e no Sono.",
+        values: {
+          awake: roundPercent(awakeSys),
+          sleep: roundPercent(sleepSys),
+        },
       });
     }
 
@@ -398,6 +412,10 @@ export class MapaRuleEngine {
         category: "PRESSURE_LOAD",
         status: "OK",
         message: "Cargas pressóricas diastólicas normais na Vigília e no Sono.",
+        values: {
+          awake: roundPercent(awakeDia),
+          sleep: roundPercent(sleepDia),
+        },
       });
     }
 
@@ -494,7 +512,7 @@ export class MapaRuleEngine {
           code: "DIP_ABSENT",
           category: "NIGHT_DIPPING",
           status: "OK",
-          message: "Ausência de descenso pressórico noturno.",
+          message: "Ausência de descenso pressórico no sono.",
           values: {
             ...(sys != null ? { systolicNightDipping: roundPercent(sys) } : {}),
             ...(dia != null ? { diastolicNightDipping: roundPercent(dia) } : {}),
@@ -510,20 +528,9 @@ export class MapaRuleEngine {
           category: "NIGHT_DIPPING",
           status: "OK",
           message: "Descensos pressóricos sistólico e diastólico normais.",
-        },
-      ];
-    }
-
-    if (sysClass === "ACCENTUATED" && diaClass === "ACCENTUATED" && sys != null && dia != null) {
-      return [
-        {
-          code: "DIP_BOTH_ACCENTUATED",
-          category: "NIGHT_DIPPING",
-          status: "OK",
-          message: `Descenso sistólico e diastólico acentuados (${roundPercent(sys)}% / ${roundPercent(dia)}%).`,
           values: {
-            systolicPercent: roundPercent(sys),
-            diastolicPercent: roundPercent(dia),
+            ...(sys != null ? { systolicPercent: roundPercent(sys) } : {}),
+            ...(dia != null ? { diastolicPercent: roundPercent(dia) } : {}),
           },
         },
       ];
@@ -536,7 +543,7 @@ export class MapaRuleEngine {
         code: "DIP_SYS_ATTENUATED",
         category: "NIGHT_DIPPING",
         status: "OK",
-        message: `Descenso sistólico atenuado (${roundPercent(sys)}%).`,
+        message: `Descenso pressórico sistólico atenuado (${roundPercent(sys)}%).`,
         values: { percent: roundPercent(sys) },
       });
     }
@@ -545,7 +552,7 @@ export class MapaRuleEngine {
         code: "DIP_DIA_ATTENUATED",
         category: "NIGHT_DIPPING",
         status: "OK",
-        message: `Descenso diastólico atenuado (${roundPercent(dia)}%).`,
+        message: `Descenso pressórico diastólico atenuado (${roundPercent(dia)}%).`,
         values: { percent: roundPercent(dia) },
       });
     }
@@ -554,7 +561,7 @@ export class MapaRuleEngine {
         code: "DIP_SYS_ACCENTUATED",
         category: "NIGHT_DIPPING",
         status: "OK",
-        message: `Descenso sistólico acentuado (${roundPercent(sys)}%).`,
+        message: `Descenso pressórico sistólico acentuado (${roundPercent(sys)}%).`,
         values: { percent: roundPercent(sys) },
       });
     }
@@ -563,7 +570,7 @@ export class MapaRuleEngine {
         code: "DIP_DIA_ACCENTUATED",
         category: "NIGHT_DIPPING",
         status: "OK",
-        message: `Descenso diastólico acentuado (${roundPercent(dia)}%).`,
+        message: `Descenso pressórico diastólico acentuado (${roundPercent(dia)}%).`,
         values: { percent: roundPercent(dia) },
       });
     }
@@ -599,8 +606,19 @@ export class MapaRuleEngine {
     const map: Record<string, { code: string; message: string }> = {
       PREGNANT: {
         code: "SPECIAL_PREGNANT",
-        message:
-          "Considerar os valores mensurados em exame realizado em gestante.",
+        message: "Gestante.",
+      },
+      OBESITY: {
+        code: "SPECIAL_OBESITY",
+        message: "Obesidade.",
+      },
+      DIABETES: {
+        code: "SPECIAL_DIABETES",
+        message: "Diabetes.",
+      },
+      ALZHEIMER: {
+        code: "SPECIAL_ALZHEIMER",
+        message: "Alzheimer.",
       },
       ALCOHOL: {
         code: "SPECIAL_ALCOHOL",
@@ -723,7 +741,7 @@ export class MapaRuleEngine {
         status: "OK",
         message:
           classification === "CONTROLLED_HYPERTENSION"
-            ? "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório, em uso de medicação de efeito cardiovascular, são compatíveis com Hipertensão Arterial Controlada."
+            ? "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Controlada."
             : classification,
       },
     ];
@@ -752,14 +770,24 @@ export class MapaRuleEngine {
         message: "CONCLUSION_NORMOTENSION_ALTERED_DIPPING",
       });
     } else {
+      const uncontrolled =
+        onCvMedication &&
+        (classification === "SUSTAINED_HYPERTENSION" ||
+          classification === "WHITE_COAT_HYPERTENSION" ||
+          classification === "MASKED_HYPERTENSION");
+      const conclusionCode = uncontrolled
+        ? `${CONCLUSION_CODES[classification]}_UNCONTROLLED`
+        : CONCLUSION_CODES[classification];
       results.push({
-        code: CONCLUSION_CODES[classification],
+        code: conclusionCode,
         category: "CONCLUSION",
         status: "OK",
         message:
           classification === "CONTROLLED_HYPERTENSION"
-            ? "Exame com valores compatíveis com Hipertensão Arterial Controlada, em uso de medicação de efeito cardiovascular."
-            : classification,
+            ? "Exame com valores compatíveis com Hipertensão Arterial Controlada."
+            : uncontrolled
+              ? `${classification}_UNCONTROLLED`
+              : classification,
       });
     }
 

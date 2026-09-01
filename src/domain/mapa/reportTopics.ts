@@ -9,7 +9,7 @@ export const REPORT_TOPICS = [
   },
   {
     key: "technicalComments",
-    label: "Comentários sobre o desempenho técnico",
+    label: "Considerações técnicas do exame",
     field: "generatedTechnicalComments",
   },
   {

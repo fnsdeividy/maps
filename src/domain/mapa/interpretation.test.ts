@@ -9,7 +9,7 @@ const consideration =
 const conclusion =
   "Exame com valores compatíveis com Hipertensão do Avental Branco.";
 const extra =
-  "Considerar o aumento de LOA relacionadas aos resultados apresentados.";
+  "Considerar o aumento de LOA relacionado aos resultados apresentados.";
 const cvMedsReminder =
   "Considerar o uso de medicamentos de efeito cardiovascular.";
 

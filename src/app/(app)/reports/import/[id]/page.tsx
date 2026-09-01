@@ -7,6 +7,7 @@ import { Field } from "@/components/Field";
 import { MeasurementObservationTable } from "@/components/MeasurementObservationTable";
 import { MedicationFields } from "@/components/MedicationFields";
 import { SpecialSituationFlags } from "@/components/SpecialSituationFlags";
+import { ClinicalSituationCheckboxes } from "@/components/ClinicalSituationCheckboxes";
 import { formatDate, formatDateTime, toInputDate } from "@/lib/dates";
 import {
   formatFileSize,
@@ -89,6 +90,17 @@ export default async function AwpImportPreviewPage({
         pregnancyMonths: linkedReport.pregnancyMonths,
       }
     : undefined;
+  let clinicalSituationDefaults: string[] = [];
+  try {
+    const parsed = JSON.parse(linkedReport?.specialSituations ?? "[]");
+    if (Array.isArray(parsed)) {
+      clinicalSituationDefaults = parsed.filter(
+        (value): value is string => typeof value === "string",
+      );
+    }
+  } catch {
+    clinicalSituationDefaults = [];
+  }
   const schedule = result.schedule;
 
   const chartPoints = result.measurements
@@ -545,6 +557,7 @@ export default async function AwpImportPreviewPage({
             className="col-span-2"
             defaults={specialFlagDefaults}
           />
+          <ClinicalSituationCheckboxes defaults={clinicalSituationDefaults} />
           <fieldset className="col-span-2 space-y-2 rounded-md border border-slate-200 p-3">
             <legend className="px-1 text-sm font-medium text-slate-800">
               Gráficos no laudo

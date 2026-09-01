@@ -89,7 +89,12 @@ export default async function ReportReviewPage({
     const engineOwned =
       topic.key === "averagePressure" ||
       topic.key === "pressureLoad" ||
-      topic.key === "nightDipping";
+      topic.key === "nightDipping" ||
+      topic.key === "medications" ||
+      topic.key === "technicalComments" ||
+      topic.key === "pressurePeaks" ||
+      topic.key === "specialSituations" ||
+      (topic.key === "conclusion" && !approved);
     const raw = engineOwned
       ? (numericDraft[topic.key] ?? stored)
       : stored;

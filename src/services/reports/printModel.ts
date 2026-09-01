@@ -6,6 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { deserializeParseResult } from "@/services/imports/awpParseResultCodec";
 import { getClinicSettings } from "@/services/settings/clinicSettings";
 import { buildDeterministicDraft } from "@/services/reports/generateReport";
+import {
+  buildOfficialPeakNarrative,
+  peakFlagPhrasesFrom,
+} from "@/domain/mapa/rules/pressurePeaks";
 
 type ManualStatsInput = {
   examDate: Date;
@@ -163,6 +167,7 @@ export async function buildReportPrintModel(
     meanArterialPressure?: number | null;
     heartRate?: number | null;
     valid: boolean;
+    discarded?: boolean;
     observation?: string | null;
   }> = [];
 
@@ -205,6 +210,24 @@ export async function buildReportPrintModel(
   }
 
   const draft = await buildDeterministicDraft(report);
+  const live = report.status !== "APPROVED";
+  const measuredPeaks = live
+    ? buildOfficialPeakNarrative(
+        measurements.map((measurement) => ({
+          measuredAt: measurement.at,
+          systolic: measurement.systolic,
+          diastolic: measurement.diastolic,
+          valid: measurement.valid && !measurement.discarded,
+          observation: measurement.observation,
+        })),
+        sleepWindow,
+      )
+    : "";
+  const pressurePeaks = measuredPeaks
+    ? [measuredPeaks, ...peakFlagPhrasesFrom(draft.pressurePeaks)].join("\n")
+    : live
+      ? draft.pressurePeaks
+      : report.generatedPressurePeaks;
 
   return {
     report,
@@ -219,15 +242,19 @@ export async function buildReportPrintModel(
     includeHistogramChart,
     includePieChart,
     narrative: {
-      medications: report.generatedMedications,
-      technicalComments: report.generatedTechnicalComments,
+      medications: live ? draft.medications : report.generatedMedications,
+      technicalComments: live
+        ? draft.technicalComments
+        : report.generatedTechnicalComments,
       averagePressure: draft.averagePressure,
       pressureLoad: draft.pressureLoad,
-      pressurePeaks: report.generatedPressurePeaks,
+      pressurePeaks,
       nightDipping: draft.nightDipping,
-      specialSituations: report.generatedSpecialSituations,
+      specialSituations: live
+        ? draft.specialSituations
+        : report.generatedSpecialSituations,
       generalConsiderations: report.generatedGeneralConsiderations,
-      conclusion: report.generatedConclusion,
+      conclusion: live ? draft.conclusion : report.generatedConclusion,
     },
   };
 }

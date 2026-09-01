@@ -149,6 +149,10 @@ export async function confirmAwpImportAction(sourceFileId: string, formData: For
       dyspnea: specialFlags.dyspnea,
       dizziness: specialFlags.dizziness,
       pregnancyMonths: num(formData, "pregnancyMonths"),
+      specialSituations: formData
+        .getAll("specialSituations")
+        .map(String)
+        .filter((value) => value !== "PREGNANT"),
       observations: readObservations(formData),
       discardedIndexes: readDiscardedIndexes(formData),
       includeTrendChart: bool(formData, "includeTrendChart"),

@@ -92,9 +92,9 @@ describe("vigília e sono", () => {
     expect(results.some((item) => item.code === "OFFICE_VS_MAPA_SUSTAINED")).toBe(
       true,
     );
-    expect(results.some((item) => item.code === "CONCLUSION_SUSTAINED")).toBe(
-      true,
-    );
+    expect(
+      results.some((item) => item.code === "CONCLUSION_SUSTAINED_UNCONTROLLED"),
+    ).toBe(true);
 
     const awake = resolved.find((item) => item.code === "AVG_AWAKE_SYS_ELEVATED");
     expect(awake?.text).toContain("135/74");

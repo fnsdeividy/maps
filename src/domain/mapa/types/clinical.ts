@@ -22,6 +22,9 @@ export type RuleResult = {
 
 export type SpecialSituationCode =
   | "PREGNANT"
+  | "OBESITY"
+  | "DIABETES"
+  | "ALZHEIMER"
   | "ALCOHOL"
   | "SMOKING"
   | "INSOMNIA"

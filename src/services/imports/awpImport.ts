@@ -164,6 +164,7 @@ export interface ConfirmAwpImportInput {
   dyspnea: TriStateFlag;
   dizziness: TriStateFlag;
   pregnancyMonths: number | null;
+  specialSituations?: string[];
   /** Observações clínicas por índice de medição. */
   observations?: Record<number, string>;
   /** Medições desconsideradas pelo revisor na conferência. */
@@ -287,7 +288,7 @@ export async function confirmAwpImport(input: ConfirmAwpImportInput) {
     dyspnea: input.dyspnea,
     dizziness: input.dizziness,
     ...reportFieldsFromMetrics(metrics),
-    specialSituations: "[]",
+    specialSituations: JSON.stringify(input.specialSituations ?? []),
     includeTrendChart: input.includeTrendChart ?? true,
     includeHistogramChart: input.includeHistogramChart ?? true,
     includePieChart: input.includePieChart ?? true,

@@ -3,11 +3,11 @@ import type { PhraseCategory } from "./types/clinical";
 /** Categorias de frases, na ordem de exibição, com rótulo amigável. */
 export const PHRASE_CATEGORIES: Array<{ value: PhraseCategory; label: string }> = [
   { value: "MEDICATION", label: "Medicações" },
-  { value: "TECHNICAL_QUALITY", label: "Comentários técnicos" },
+  { value: "TECHNICAL_QUALITY", label: "Considerações técnicas do exame" },
   { value: "AVERAGE_PRESSURE", label: "Médias pressóricas" },
   { value: "PRESSURE_LOAD", label: "Cargas pressóricas" },
   { value: "PRESSURE_PEAK", label: "Picos pressóricos" },
-  { value: "NIGHT_DIPPING", label: "Descenso noturno" },
+  { value: "NIGHT_DIPPING", label: "Descenso pressórico" },
   { value: "SPECIAL_SITUATION", label: "Situações especiais" },
   { value: "CONCLUSION", label: "Interpretação dos resultados" },
 ];

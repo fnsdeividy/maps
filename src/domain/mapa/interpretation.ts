@@ -33,8 +33,8 @@ function diagnosisKey(text: string): string | null {
     .toLowerCase();
   if (/avental branco/.test(normalized)) return "white-coat";
   if (/mascarada/.test(normalized)) return "masked";
-  if (/controlada/.test(normalized)) return "controlled";
   if (/sustentada/.test(normalized)) return "sustained";
+  if (/controlada/.test(normalized)) return "controlled";
   if (/normotensao/.test(normalized)) return "normotension";
   return null;
 }
