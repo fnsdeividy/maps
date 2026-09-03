@@ -8,6 +8,7 @@ const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/patients", label: "Pacientes" },
   { href: "/reports", label: "Laudos" },
+  { href: "/controle-laudos", label: "Controle de laudos" },
   { href: "/reports/new", label: "Novo Laudo" },
   { href: "/phrases", label: "Frases" },
   { href: "/notifications", label: "Notificações" },
