@@ -1,5 +1,12 @@
 export type AppEnvironment = "production" | "development" | "test";
 
+type EnvLike = {
+  APP_ENV?: string;
+  NEXT_PUBLIC_APP_ENV?: string;
+  VERCEL_ENV?: string;
+  NODE_ENV?: string;
+};
+
 function explicitEnv(value: string | undefined): AppEnvironment | null {
   if (value === "production" || value === "development" || value === "test") {
     return value;
@@ -13,9 +20,7 @@ function explicitEnv(value: string | undefined): AppEnvironment | null {
  * Ambiente da aplicação para avisos visuais.
  * Produção só quando marcado explicitamente ou NODE_ENV=production sem override.
  */
-export function resolveAppEnvironment(
-  env: NodeJS.ProcessEnv = process.env,
-): AppEnvironment {
+export function resolveAppEnvironment(env: EnvLike = process.env): AppEnvironment {
   const explicit =
     explicitEnv(env.APP_ENV) ??
     explicitEnv(env.NEXT_PUBLIC_APP_ENV) ??
