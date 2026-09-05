@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { EnvironmentBanner } from "@/components/EnvironmentBanner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,7 +16,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" className={`${geistSans.variable} h-full antialiased`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <EnvironmentBanner />
+        {children}
+      </body>
     </html>
   );
 }
