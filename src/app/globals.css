@@ -99,8 +99,36 @@ body {
     size: A4;
     margin: 8mm;
   }
+
+  .mapa-print.is-draft::before {
+    display: block;
+    z-index: 9999;
+    color: rgb(185 28 28 / 0.14);
+  }
+
+  .draft-banner {
+    background: #fee2e2 !important;
+    color: #7f1d1d !important;
+    border-color: #991b1b !important;
+  }
 }
 
 .mapa-print .print-page {
   box-shadow: 0 1px 8px rgb(15 23 42 / 12%);
+}
+
+.mapa-print.is-draft::before {
+  display: none;
+  content: "RASCUNHO";
+  pointer-events: none;
+  position: fixed;
+  top: 42%;
+  left: 50%;
+  z-index: 0;
+  transform: translate(-50%, -50%) rotate(-32deg);
+  font-size: 6.5rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: rgb(185 28 28 / 0.12);
+  white-space: nowrap;
 }

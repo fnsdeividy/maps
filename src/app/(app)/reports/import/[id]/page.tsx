@@ -119,12 +119,22 @@ export default async function AwpImportPreviewPage({
   return (
     <div className="max-w-7xl">
       {alreadyImported && linkedReport ? (
-        <Link
-          className="text-sm text-slate-600 underline"
-          href={`/reports/${linkedReport.id}`}
-        >
-          Voltar à revisão do laudo
-        </Link>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <Link
+            className="text-sm text-slate-600 underline"
+            href={`/reports/${linkedReport.id}`}
+          >
+            Voltar à revisão do laudo
+          </Link>
+          <Link
+            className="text-sm text-slate-600 underline"
+            href={`/reports/${linkedReport.id}/print`}
+          >
+            {linkedReport.status === "APPROVED"
+              ? "Imprimir laudo"
+              : "Imprimir rascunho"}
+          </Link>
+        </div>
       ) : (
         <Link className="text-sm text-slate-600 underline" href="/reports/new">
           Voltar
@@ -587,9 +597,19 @@ export default async function AwpImportPreviewPage({
             {alreadyImported ? "Salvar alterações no laudo" : "Importar dados para o laudo"}
           </button>
           {alreadyImported && linkedReport ? (
-            <Link className="text-sm text-slate-600 underline" href={`/reports/${linkedReport.id}`}>
-              Voltar à revisão
-            </Link>
+            <>
+              <Link className="text-sm text-slate-600 underline" href={`/reports/${linkedReport.id}`}>
+                Voltar à revisão
+              </Link>
+              <Link
+                className="text-sm text-slate-600 underline"
+                href={`/reports/${linkedReport.id}/print`}
+              >
+                {linkedReport.status === "APPROVED"
+                  ? "Imprimir laudo"
+                  : "Imprimir rascunho"}
+              </Link>
+            </>
           ) : (
             <Link className="text-sm text-slate-600 underline" href="/reports/new">
               Voltar

@@ -47,6 +47,14 @@ export default async function ReportsPage() {
                       <Link className="text-teal-700" href={`/reports/${report.id}`}>
                         Revisar
                       </Link>
+                      <Link
+                        className="text-teal-700"
+                        href={`/reports/${report.id}/print`}
+                      >
+                        {report.status === "APPROVED"
+                          ? "Imprimir"
+                          : "Imprimir rascunho"}
+                      </Link>
                       {canDelete ? (
                         <DeleteReportButton
                           action={deleteReportAction.bind(null, report.id)}

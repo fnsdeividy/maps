@@ -64,6 +64,7 @@ function PrintHeader({
   examEnd,
   durationLabel,
   assistantDoctorName,
+  draft = false,
 }: {
   patientName: string;
   patientId?: string | null;
@@ -71,9 +72,15 @@ function PrintHeader({
   examEnd: Date | null;
   durationLabel: string | null;
   assistantDoctorName?: string | null;
+  draft?: boolean;
 }) {
   return (
     <header className="print-header print-keep">
+      {draft ? (
+        <p className="draft-banner mb-2 border border-red-800 bg-red-100 py-1 text-center text-[11px] font-bold uppercase tracking-wide text-red-900">
+          Rascunho — não aprovado
+        </p>
+      ) : null}
       <div className="flex justify-center">
         {/* img nativo: next/image costuma falhar no diálogo de impressão */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -308,6 +315,7 @@ export function MapaPrintDocument({
   review = null,
   reportId,
   canEditMeasurements = false,
+  draft = false,
 }: {
   patient: PatientInfo;
   awpPatient?: AwpPatientData | null;
@@ -361,6 +369,8 @@ export function MapaPrintDocument({
   } | null;
   reportId?: string;
   canEditMeasurements?: boolean;
+  /** Marca o documento como rascunho na tela e na impressão. */
+  draft?: boolean;
 }) {
   const age = ageAt(patient.birthDate, examDate);
   const sexLabel = genderLabel(
@@ -455,6 +465,7 @@ export function MapaPrintDocument({
   const headerProps = {
     assistantDoctorName,
     durationLabel: stats?.durationLabel ?? null,
+    draft,
     examEnd,
     examStart,
     patientId: awpPatient?.patientId ?? patient.document,
@@ -462,7 +473,7 @@ export function MapaPrintDocument({
   };
 
   return (
-    <div className="mapa-print text-black">
+    <div className={`mapa-print text-black${draft ? " is-draft" : ""}`}>
       {/* Página 1 — identificação + resultados (sem texto longo) */}
       <article className="print-page mx-auto max-w-[210mm] bg-white p-6 print:p-0">
         <PrintHeader {...headerProps} />
@@ -903,6 +914,11 @@ export function MapaPrintDocument({
                 …
               </p>
             </div>
+          ) : null}
+          {draft ? (
+            <p className="mt-3 font-semibold uppercase tracking-wide text-red-800">
+              Documento em rascunho — sem validade até a aprovação
+            </p>
           ) : null}
         </div>
 

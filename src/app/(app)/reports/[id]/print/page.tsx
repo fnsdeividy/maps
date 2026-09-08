@@ -47,14 +47,10 @@ export default async function PrintReportPage({
   if (!status) notFound();
 
   const approved = status.status === "APPROVED";
-  const approverPreview = !approved && isApprover(role);
-  // Operador só imprime laudo aprovado; aprovador pode pré-visualizar antes.
-  if (!approved && !approverPreview) {
-    redirect(`/reports/${id}`);
-  }
+  const draft = !approved;
 
   const model = await buildReportPrintModel(id, {
-    showAllCharts: approverPreview,
+    showAllCharts: false,
   });
   if (!model) notFound();
 
@@ -76,7 +72,7 @@ export default async function PrintReportPage({
 
   return (
     <div className="min-h-screen bg-slate-200 print:min-h-0 print:bg-white">
-      <PrintToolbar preview={approverPreview} />
+      <PrintToolbar draft={draft} />
       {isApprover(role) && approved ? (
         <div className="mx-auto max-w-[210mm] px-4 pt-4 print:hidden">
           {signError ? (
@@ -100,6 +96,7 @@ export default async function PrintReportPage({
         chartPoints={model.chartPoints}
         doctorName={doctorName}
         doctorRqe={doctorRqe}
+        draft={draft}
         digitalSignature={
           report.signedAt && report.signerCommonName && report.signerThumbprint
             ? {

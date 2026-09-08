@@ -238,14 +238,12 @@ export default async function ReportReviewPage({
               </button>
             </form>
           ) : null}
-          {approved || approverView ? (
-            <Link
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white"
-              href={`/reports/${report.id}/print`}
-            >
-              {approved ? "Imprimir laudo" : "Ver laudo e gráficos"}
-            </Link>
-          ) : null}
+          <Link
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white"
+            href={`/reports/${report.id}/print`}
+          >
+            {approved ? "Imprimir laudo" : "Imprimir rascunho"}
+          </Link>
           {approverView ? (
             <DeleteReportButton
               action={softDelete}
