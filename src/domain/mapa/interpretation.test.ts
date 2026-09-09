@@ -46,6 +46,17 @@ describe("interpretationDisplayText", () => {
       conclusion,
     );
   });
+
+  it("remove o código de classificação quando a frase curta está inativa", () => {
+    const masked =
+      "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores do consultório sugerem Hipertensão Mascarada.";
+    expect(
+      interpretationDisplayText(masked, "MASKED_HYPERTENSION"),
+    ).toBe(masked);
+    expect(
+      interpretationDisplayText("", `MASKED_HYPERTENSION ${masked}`),
+    ).toBe(masked);
+  });
 });
 
 describe("hasStandaloneConsiderations", () => {

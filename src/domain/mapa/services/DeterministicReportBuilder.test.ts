@@ -85,4 +85,25 @@ describe("laudo determinístico sem OpenAI", () => {
       /considerar o uso de medicamentos de efeito cardiovascular/i,
     );
   });
+
+  it("não vaza o código do motor quando a frase curta está inativa", () => {
+    const results = new MapaRuleEngine().evaluate({
+      currentMedications: "",
+      officeSystolicPressure: 120,
+      officeDiastolicPressure: 80,
+      avg24hSystolic: 140,
+      avg24hDiastolic: 90,
+    });
+    const sections = new DeterministicReportBuilder().build(
+      new ReportPhraseResolver(
+        REPORT_PHRASES.map((phrase) => ({
+          ...phrase,
+          active: phrase.code !== "CONCLUSION_MASKED",
+        })),
+      ).resolve(results),
+    );
+
+    expect(sections.conclusion).toContain("Hipertensão Mascarada");
+    expect(sections.conclusion).not.toMatch(/MASKED_HYPERTENSION/);
+  });
 });

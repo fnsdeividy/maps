@@ -39,11 +39,27 @@ function diagnosisKey(text: string): string | null {
   return null;
 }
 
+/** Fallback do motor quando a frase está inativa (ex.: MASKED_HYPERTENSION). */
+export function isEngineFallbackToken(text: string): boolean {
+  const value = text.trim();
+  if (!value) return false;
+  if (value === "NORMOTENSION") return true;
+  return /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(value);
+}
+
+export function stripEngineFallbackTokens(text: string): string {
+  return text
+    .replace(/\bNORMOTENSION\b/g, " ")
+    .replace(/\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function phrasesOf(text: string): string[] {
   return text
     .split(/\n+/)
     .flatMap((line) => line.split(/(?<=[.;])\s+(?=[A-ZÀ-Ú])/u))
-    .map((part) => part.trim())
+    .map((part) => stripEngineFallbackTokens(part.trim()))
     .filter(Boolean);
 }
 
@@ -52,12 +68,15 @@ export function phrasesOf(text: string): string[] {
  * junta o restante em parágrafos.
  */
 export function composeInterpretationPhrases(phrases: string[]): string {
-  const cleaned = phrases.map((phrase) => phrase.trim()).filter(Boolean);
+  const cleaned = phrases
+    .map((phrase) => stripEngineFallbackTokens(phrase.trim()))
+    .filter(Boolean);
   const hasExamConclusion = cleaned.some(isExamConclusionPhrase);
   const seenDiagnosis = new Set<string>();
   const kept: string[] = [];
 
   for (const phrase of cleaned) {
+    if (isEngineFallbackToken(phrase)) continue;
     if (isCvMedicationReminder(phrase)) continue;
     if (hasExamConclusion && isOfficeVsMapaDiagnosis(phrase)) continue;
     const key = diagnosisKey(phrase);
