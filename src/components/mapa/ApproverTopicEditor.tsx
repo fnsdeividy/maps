@@ -3,6 +3,15 @@
 import { useEffect, useState } from "react";
 import { TOPIC_FEEDBACK_PREFIX } from "@/domain/mapa/reportTopics";
 
+function appendPhrase(current: string, phrase: string): string {
+  const trimmed = current.trim();
+  const next = phrase.trim();
+  if (!next) return current;
+  if (!trimmed) return next;
+  if (trimmed.includes(next)) return trimmed;
+  return `${trimmed}\n\n${next}`;
+}
+
 export function ApproverTopicEditor({
   topicKey,
   label,
@@ -21,10 +30,18 @@ export function ApproverTopicEditor({
   rejectFormId: string;
 }) {
   const [text, setText] = useState(value);
+  const [edited, setEdited] = useState(false);
 
   useEffect(() => {
-    setText(value);
-  }, [value]);
+    if (!edited) setText(value);
+  }, [value, edited]);
+
+  function applyPhrase(code: string) {
+    const phrase = phrases.find((item) => item.code === code);
+    if (!phrase) return;
+    setEdited(true);
+    setText((current) => appendPhrase(current, phrase.text));
+  }
 
   return (
     <div className="print:hidden mt-2 space-y-2">
@@ -34,29 +51,27 @@ export function ApproverTopicEditor({
           className="w-full rounded-md border border-teal-300 bg-teal-50/80 px-2 py-1.5 text-[11px] leading-relaxed text-slate-900"
           form={editFormId}
           name={topicKey}
-          onChange={(event) => setText(event.target.value)}
-          rows={Math.min(8, Math.max(3, Math.ceil(text.length / 90)))}
+          onChange={(event) => {
+            setEdited(true);
+            setText(event.target.value);
+          }}
+          rows={Math.min(12, Math.max(3, Math.ceil(text.length / 90)))}
           value={text}
         />
       </label>
       {phrases.length > 0 ? (
         <select
           className="w-full rounded border border-teal-200 bg-white px-2 py-1 text-[11px]"
+          defaultValue=""
           onChange={(event) => {
-            const next = event.target.value;
-            if (!next) return;
-            setText((current) => {
-              const trimmed = current.trim();
-              if (!trimmed) return next;
-              if (trimmed.includes(next)) return current;
-              return `${trimmed}\n\n${next}`;
-            });
+            const code = event.target.value;
+            event.target.value = "";
+            if (code) applyPhrase(code);
           }}
-          value=""
         >
           <option value="">Aplicar frase pré-definida…</option>
           {phrases.map((phrase) => (
-            <option key={phrase.code} value={phrase.text}>
+            <option key={phrase.code} value={phrase.code}>
               {phrase.text}
             </option>
           ))}

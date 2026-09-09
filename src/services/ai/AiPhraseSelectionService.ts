@@ -3,7 +3,7 @@ import type { PhraseCategory, RuleResult } from "@/domain/mapa/types/clinical";
 import type { StructuredReportSections } from "@/domain/mapa/types/report";
 import { composeInterpretationPhrases, phrasesOf } from "@/domain/mapa/interpretation";
 
-export const AI_SELECTION_PROMPT_VERSION = "mapa-select-v4";
+export const AI_SELECTION_PROMPT_VERSION = "mapa-select-v5";
 
 type Resolved = RuleResult & { text: string };
 
@@ -81,7 +81,6 @@ export function buildCandidates(
   for (const item of resolved) {
     if (item.code === "GUIDELINE_FOOTER") continue;
     if (item.code === "GENERAL_CONSIDER_CV_MEDS") continue;
-    if (item.code.startsWith("OFFICE_VS_MAPA_")) continue;
     const category =
       item.category === "GENERAL_CONSIDERATION" ? "CONCLUSION" : item.category;
     push(category, { code: item.code, text: item.text });
@@ -91,7 +90,6 @@ export function buildCandidates(
     if (!phrase.active) continue;
     if (phrase.code === "GUIDELINE_FOOTER") continue;
     if (phrase.code === "GENERAL_CONSIDER_CV_MEDS") continue;
-    if (phrase.code.startsWith("OFFICE_VS_MAPA_")) continue;
     if (hasUnresolvedPlaceholder(phrase.text)) continue;
 
     if (phrase.category === "GENERAL_CONSIDERATION") {
@@ -103,6 +101,24 @@ export function buildCandidates(
     if (ENGINE_ONLY_CATEGORIES.has(category)) continue;
     if (!AI_COMPOSED_CATEGORIES.includes(category)) continue;
     push(category, { code: phrase.code, text: phrase.text });
+  }
+
+  if (out.CONCLUSION) {
+    const hasComplete = out.CONCLUSION.some((candidate) =>
+      candidate.code.startsWith("OFFICE_VS_MAPA_"),
+    );
+    if (hasComplete) {
+      out.CONCLUSION = out.CONCLUSION.filter(
+        (candidate) =>
+          ![
+            "CONCLUSION_NORMOTENSION",
+            "CONCLUSION_SUSTAINED",
+            "CONCLUSION_WHITE_COAT",
+            "CONCLUSION_MASKED",
+            "CONCLUSION_CONTROLLED",
+          ].includes(candidate.code),
+      );
+    }
   }
 
   return out;
@@ -132,11 +148,9 @@ export function mergeSelection(
     const byCode = new Map(
       (candidates[category] ?? []).map((c) => [c.code, c.text]),
     );
-    const pickedCodes = (picked.codes ?? []).filter((code) => {
-      if (code === "GENERAL_CONSIDER_CV_MEDS") return false;
-      if (!code.startsWith("OFFICE_VS_MAPA_")) return true;
-      return !(picked.codes ?? []).some((item) => item.startsWith("CONCLUSION_"));
-    });
+    const pickedCodes = (picked.codes ?? []).filter(
+      (code) => code !== "GENERAL_CONSIDER_CV_MEDS",
+    );
     const texts = pickedCodes
       .map((code) => byCode.get(code))
       .filter((text): text is string => Boolean(text?.trim()));
@@ -175,7 +189,10 @@ export const SYSTEM_PROMPT =
   "Sua função é redigir o laudo utilizando os indicadores calculados pelo sistema. " +
   "NUNCA invente números nem cite valores que não estejam nas frases ou no contexto fornecidos. " +
   "Se o contexto informar carga pressórica de 12,5%, o texto deve usar 12,5% — nunca outro percentual. " +
-  "Não repita a mesma ideia: se já houver uma frase CONCLUSION_*, não escolha OFFICE_VS_MAPA_*. " +
+  "Quando houver duas frases para o mesmo diagnóstico, escolha a mais completa: " +
+  "a que compara médias do MAPA 24h com a PA de consultório. " +
+  "Não escolha a curta 'Exame com valores compatíveis' se existir a completa. " +
+  "A curta só vale se for mais específica (Não Controlada ou 'porém resultado alterado'). " +
   "Separe ideias distintas; o sistema já quebra em parágrafos. Responda apenas JSON no formato " +
   '{"<tópico>": {"codes": ["ID"], "opinion": ""}}.';
 

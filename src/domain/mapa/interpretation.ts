@@ -63,22 +63,46 @@ export function phrasesOf(text: string): string[] {
     .filter(Boolean);
 }
 
+function isSpecificDiagnosisPhrase(text: string): boolean {
+  const normalized = text
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  if (/nao controlada/.test(normalized)) return true;
+  return /porem/.test(normalized) && /alterado/.test(normalized);
+}
+
 /**
- * Remove o diagnóstico duplicado (consultório × MAPA + “Exame com…”) e
- * junta o restante em parágrafos.
+ * Remove o diagnóstico duplicado. Prefere a frase completa consultório × MAPA
+ * à curta “Exame com valores…”, salvo a curta ser mais específica.
  */
 export function composeInterpretationPhrases(phrases: string[]): string {
   const cleaned = phrases
     .map((phrase) => stripEngineFallbackTokens(phrase.trim()))
     .filter(Boolean);
-  const hasExamConclusion = cleaned.some(isExamConclusionPhrase);
+  const hasSpecific = cleaned.some(isSpecificDiagnosisPhrase);
+  const hasComplete = cleaned.some(isOfficeVsMapaDiagnosis);
   const seenDiagnosis = new Set<string>();
   const kept: string[] = [];
 
   for (const phrase of cleaned) {
     if (isEngineFallbackToken(phrase)) continue;
     if (isCvMedicationReminder(phrase)) continue;
-    if (hasExamConclusion && isOfficeVsMapaDiagnosis(phrase)) continue;
+    if (
+      hasSpecific &&
+      (isOfficeVsMapaDiagnosis(phrase) || isExamConclusionPhrase(phrase)) &&
+      !isSpecificDiagnosisPhrase(phrase)
+    ) {
+      continue;
+    }
+    if (
+      !hasSpecific &&
+      hasComplete &&
+      isExamConclusionPhrase(phrase) &&
+      !isSpecificDiagnosisPhrase(phrase)
+    ) {
+      continue;
+    }
     const key = diagnosisKey(phrase);
     if (key && (isOfficeVsMapaDiagnosis(phrase) || isExamConclusionPhrase(phrase))) {
       if (seenDiagnosis.has(key)) continue;

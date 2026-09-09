@@ -90,7 +90,7 @@ describe("vigília e sono", () => {
       true,
     );
     expect(results.some((item) => item.code === "OFFICE_VS_MAPA_SUSTAINED")).toBe(
-      true,
+      false,
     );
     expect(
       results.some((item) => item.code === "CONCLUSION_SUSTAINED_UNCONTROLLED"),

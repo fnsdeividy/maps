@@ -7,6 +7,10 @@ import { deserializeParseResult } from "@/services/imports/awpParseResultCodec";
 import { getClinicSettings } from "@/services/settings/clinicSettings";
 import { buildDeterministicDraft } from "@/services/reports/generateReport";
 import {
+  isFilledReportText,
+  stripEngineFallbackTokens,
+} from "@/domain/mapa/interpretation";
+import {
   buildOfficialPeakNarrative,
   peakFlagPhrasesFrom,
 } from "@/domain/mapa/rules/pressurePeaks";
@@ -211,6 +215,9 @@ export async function buildReportPrintModel(
 
   const draft = await buildDeterministicDraft(report);
   const live = report.status !== "APPROVED";
+  const savedConclusion = isFilledReportText(report.generatedConclusion)
+    ? stripEngineFallbackTokens(report.generatedConclusion)
+    : "";
   const measuredPeaks = live
     ? buildOfficialPeakNarrative(
         measurements.map((measurement) => ({
@@ -254,7 +261,9 @@ export async function buildReportPrintModel(
         ? draft.specialSituations
         : report.generatedSpecialSituations,
       generalConsiderations: report.generatedGeneralConsiderations,
-      conclusion: live ? draft.conclusion : report.generatedConclusion,
+      conclusion: live
+        ? savedConclusion || draft.conclusion
+        : report.generatedConclusion,
     },
   };
 }

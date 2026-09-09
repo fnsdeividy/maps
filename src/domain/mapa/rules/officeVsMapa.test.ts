@@ -91,7 +91,7 @@ describe("produção com limiares padrão do roteiro", () => {
       true,
     );
     expect(results.some((item) => item.code === "CONCLUSION_WHITE_COAT")).toBe(
-      true,
+      false,
     );
   });
 
@@ -99,22 +99,22 @@ describe("produção com limiares padrão do roteiro", () => {
     {
       office: [150, 95] as const,
       mapa: [120, 70] as const,
-      conclusion: "CONCLUSION_WHITE_COAT",
+      conclusion: "OFFICE_VS_MAPA_WHITE_COAT",
     },
     {
       office: [120, 80] as const,
       mapa: [140, 90] as const,
-      conclusion: "CONCLUSION_MASKED",
+      conclusion: "OFFICE_VS_MAPA_MASKED",
     },
     {
       office: [150, 95] as const,
       mapa: [140, 90] as const,
-      conclusion: "CONCLUSION_SUSTAINED",
+      conclusion: "OFFICE_VS_MAPA_SUSTAINED",
     },
     {
       office: [120, 80] as const,
       mapa: [120, 70] as const,
-      conclusion: "CONCLUSION_NORMOTENSION",
+      conclusion: "OFFICE_VS_MAPA_NORMOTENSION",
     },
   ])("interpretação recebe $conclusion", ({ office, mapa, conclusion }) => {
     const engine = new MapaRuleEngine();
@@ -157,12 +157,12 @@ describe("produção com limiares padrão do roteiro", () => {
       avg24hSystolic: 120,
       avg24hDiastolic: 70,
     });
-    expect(results.some((item) => item.code === "CONCLUSION_CONTROLLED")).toBe(
-      true,
-    );
     expect(
       results.some((item) => item.code === "OFFICE_VS_MAPA_CONTROLLED"),
     ).toBe(true);
+    expect(results.some((item) => item.code === "CONCLUSION_CONTROLLED")).toBe(
+      false,
+    );
     expect(results.some((item) => item.code === "CONCLUSION_NORMOTENSION")).toBe(
       false,
     );

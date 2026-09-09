@@ -47,12 +47,23 @@ const OFFICE_VS_MAPA_CODES = {
   CONTROLLED_HYPERTENSION: "OFFICE_VS_MAPA_CONTROLLED",
 } as const;
 
-const CONCLUSION_CODES = {
-  NORMOTENSION: "CONCLUSION_NORMOTENSION",
-  SUSTAINED_HYPERTENSION: "CONCLUSION_SUSTAINED",
-  WHITE_COAT_HYPERTENSION: "CONCLUSION_WHITE_COAT",
-  MASKED_HYPERTENSION: "CONCLUSION_MASKED",
-  CONTROLLED_HYPERTENSION: "CONCLUSION_CONTROLLED",
+const OFFICE_VS_MAPA_FALLBACK = {
+  NORMOTENSION:
+    "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Normotensão Arterial Verdadeira.",
+  SUSTAINED_HYPERTENSION:
+    "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Sustentada.",
+  WHITE_COAT_HYPERTENSION:
+    "Os valores das médias pressóricas 24horas do MAPA comparadas aos valores de consultório sugerem Hipertensão do Avental Branco.",
+  MASKED_HYPERTENSION:
+    "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores do consultório sugerem Hipertensão Mascarada.",
+  CONTROLLED_HYPERTENSION:
+    "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Controlada.",
+} as const;
+
+const CONCLUSION_UNCONTROLLED_CODES = {
+  SUSTAINED_HYPERTENSION: "CONCLUSION_SUSTAINED_UNCONTROLLED",
+  WHITE_COAT_HYPERTENSION: "CONCLUSION_WHITE_COAT_UNCONTROLLED",
+  MASKED_HYPERTENSION: "CONCLUSION_MASKED_UNCONTROLLED",
 } as const;
 
 export class MapaRuleEngine {
@@ -734,60 +745,55 @@ export class MapaRuleEngine {
       classification = "CONTROLLED_HYPERTENSION";
     }
 
-    const results: RuleResult[] = [
-      {
-        code: OFFICE_VS_MAPA_CODES[classification],
-        category: "GENERAL_CONSIDERATION",
-        status: "OK",
-        message:
-          classification === "CONTROLLED_HYPERTENSION"
-            ? "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Controlada."
-            : classification,
-      },
-    ];
+    const results: RuleResult[] = [];
 
     const awakeSysElevated =
       data.awakeSystolic != null &&
       roundMmHg(data.awakeSystolic) >= this.thresholds.awake.systolic;
 
     const dippingAbnormal = this.hasAbnormalNightDipping(data);
+    const uncontrolled =
+      onCvMedication &&
+      (classification === "SUSTAINED_HYPERTENSION" ||
+        classification === "WHITE_COAT_HYPERTENSION" ||
+        classification === "MASKED_HYPERTENSION");
 
-    // Interpretação sempre recebe a conclusão diagnóstica. Em normotensão com
-    // achado extra (vigília/descenso), a frase mais específica substitui a
-    // genérica para não contradizer “verdadeira” com “porém alterado”.
+    // Uma frase só: específica (alterado / não controlada) ou a completa
+    // consultório × MAPA. Nunca usar o código da classificação como texto.
     if (classification === "NORMOTENSION" && awakeSysElevated) {
       results.push({
         code: "CONCLUSION_NORMOTENSION_ALTERED_AWAKE_SYS",
         category: "CONCLUSION",
         status: "OK",
-        message: "CONCLUSION_NORMOTENSION_ALTERED_AWAKE_SYS",
+        message:
+          "Exame com valores compatíveis com Normotensão Arterial, porém resultado alterado pela elevação da média da Pressão Arterial Sistólica na Vigília.",
       });
     } else if (classification === "NORMOTENSION" && dippingAbnormal) {
       results.push({
         code: "CONCLUSION_NORMOTENSION_ALTERED_DIPPING",
         category: "CONCLUSION",
         status: "OK",
-        message: "CONCLUSION_NORMOTENSION_ALTERED_DIPPING",
+        message:
+          "Valores compatíveis com Normotensão Arterial, porém, resultado alterado devido ao descenso pressórico no sono anormal.",
       });
-    } else {
-      const uncontrolled =
-        onCvMedication &&
-        (classification === "SUSTAINED_HYPERTENSION" ||
-          classification === "WHITE_COAT_HYPERTENSION" ||
-          classification === "MASKED_HYPERTENSION");
-      const conclusionCode = uncontrolled
-        ? `${CONCLUSION_CODES[classification]}_UNCONTROLLED`
-        : CONCLUSION_CODES[classification];
+    } else if (uncontrolled) {
       results.push({
-        code: conclusionCode,
+        code: CONCLUSION_UNCONTROLLED_CODES[classification],
         category: "CONCLUSION",
         status: "OK",
         message:
-          classification === "CONTROLLED_HYPERTENSION"
-            ? "Exame com valores compatíveis com Hipertensão Arterial Controlada."
-            : uncontrolled
-              ? `${classification}_UNCONTROLLED`
-              : classification,
+          classification === "SUSTAINED_HYPERTENSION"
+            ? "Exame com valores compatíveis com Hipertensão Arterial Sustentada Não Controlada."
+            : classification === "WHITE_COAT_HYPERTENSION"
+              ? "Exame com valores compatíveis com Hipertensão do Avental Branco Não Controlada."
+              : "Exame com valores compatíveis com Hipertensão Mascarada Não Controlada.",
+      });
+    } else {
+      results.push({
+        code: OFFICE_VS_MAPA_CODES[classification],
+        category: "CONCLUSION",
+        status: "OK",
+        message: OFFICE_VS_MAPA_FALLBACK[classification],
       });
     }
 
