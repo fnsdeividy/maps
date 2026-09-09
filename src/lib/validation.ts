@@ -10,6 +10,9 @@ export const patientSchema = z.object({
 
 export const specialSituationSchema = z.enum([
   "PREGNANT",
+  "OBESITY",
+  "DIABETES",
+  "ALZHEIMER",
   "ALCOHOL",
   "SMOKING",
   "INSOMNIA",

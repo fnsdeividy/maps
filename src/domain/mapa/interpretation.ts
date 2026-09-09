@@ -11,10 +11,6 @@ function isOfficeVsMapaDiagnosis(text: string): boolean {
   return /valores das médias pressóricas/i.test(text);
 }
 
-function isExamConclusionPhrase(text: string): boolean {
-  return /^exame com valores compatíveis/i.test(text.trim());
-}
-
 /** Lembrete clínico: a medicação entra na classificação, não no texto do laudo. */
 export function isCvMedicationReminder(text: string): boolean {
   const normalized = text
@@ -26,49 +22,44 @@ export function isCvMedicationReminder(text: string): boolean {
   );
 }
 
-function diagnosisKey(text: string): string | null {
-  const normalized = text
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase();
-  if (/avental branco/.test(normalized)) return "white-coat";
-  if (/mascarada/.test(normalized)) return "masked";
-  if (/controlada/.test(normalized)) return "controlled";
-  if (/sustentada/.test(normalized)) return "sustained";
-  if (/normotensao/.test(normalized)) return "normotension";
-  return null;
+/** Fallback do motor quando a frase está inativa (ex.: MASKED_HYPERTENSION). */
+export function isEngineFallbackToken(text: string): boolean {
+  const value = text.trim();
+  if (!value) return false;
+  if (value === "NORMOTENSION") return true;
+  return /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(value);
+}
+
+export function stripEngineFallbackTokens(text: string): string {
+  return text
+    .replace(/\bNORMOTENSION\b/g, " ")
+    .replace(/\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function phrasesOf(text: string): string[] {
   return text
     .split(/\n+/)
     .flatMap((line) => line.split(/(?<=[.;])\s+(?=[A-ZÀ-Ú])/u))
-    .map((part) => part.trim())
+    .map((part) => stripEngineFallbackTokens(part.trim()))
     .filter(Boolean);
 }
 
 /**
- * Remove o diagnóstico duplicado (consultório × MAPA + “Exame com…”) e
- * junta o restante em parágrafos.
+ * Remove apenas conteúdo técnico que não pode aparecer no laudo. As frases
+ * clínicas escolhidas pelo médico são preservadas para edição individual.
  */
 export function composeInterpretationPhrases(phrases: string[]): string {
-  const cleaned = phrases.map((phrase) => phrase.trim()).filter(Boolean);
-  const hasExamConclusion = cleaned.some(isExamConclusionPhrase);
-  const seenDiagnosis = new Set<string>();
-  const kept: string[] = [];
-
-  for (const phrase of cleaned) {
-    if (isCvMedicationReminder(phrase)) continue;
-    if (hasExamConclusion && isOfficeVsMapaDiagnosis(phrase)) continue;
-    const key = diagnosisKey(phrase);
-    if (key && (isOfficeVsMapaDiagnosis(phrase) || isExamConclusionPhrase(phrase))) {
-      if (seenDiagnosis.has(key)) continue;
-      seenDiagnosis.add(key);
-    }
-    kept.push(phrase);
-  }
-
-  return kept.join("\n\n");
+  const cleaned = phrases
+    .map((phrase) => stripEngineFallbackTokens(phrase.trim()))
+    .filter(Boolean);
+  return cleaned
+    .filter(
+      (phrase) =>
+        !isEngineFallbackToken(phrase) && !isCvMedicationReminder(phrase),
+    )
+    .join("\n\n");
 }
 
 /**

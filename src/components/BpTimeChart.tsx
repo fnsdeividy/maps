@@ -413,7 +413,7 @@ export function BpTimeChart({
           BP Tendência vs Tempo
         </text>
 
-        {/* Noite (cinza) */}
+        {/* Sono (cinza) */}
         {sleepBands.map((band) => (
           <rect
             fill="#94a3b8"
@@ -585,11 +585,11 @@ export function BpTimeChart({
       >
         <span className="inline-flex items-center gap-1.5">
           <span className="inline-block h-3 w-5 border border-slate-300 bg-white" />
-          Dia
+          Vigília
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="inline-block h-3 w-5 bg-slate-400/40" />
-          Noite
+          Sono
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="font-bold text-green-600">—</span>

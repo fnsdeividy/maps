@@ -63,6 +63,11 @@ async function main() {
       },
     });
   }
+
+  await prisma.reportPhrase.updateMany({
+    where: { code: { notIn: REPORT_PHRASES.map((phrase) => phrase.code) } },
+    data: { active: false },
+  });
 }
 
 main()

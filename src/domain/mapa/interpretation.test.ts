@@ -9,14 +9,14 @@ const consideration =
 const conclusion =
   "Exame com valores compatíveis com Hipertensão do Avental Branco.";
 const extra =
-  "Considerar o aumento de LOA relacionadas aos resultados apresentados.";
+  "Considerar o aumento de LOA relacionado aos resultados apresentados.";
 const cvMedsReminder =
   "Considerar o uso de medicamentos de efeito cardiovascular.";
 
 describe("interpretationDisplayText", () => {
-  it("não junta consideração e conclusão do mesmo diagnóstico", () => {
+  it("preserva as frases escolhidas para remoção manual", () => {
     expect(interpretationDisplayText(consideration, conclusion)).toBe(
-      conclusion,
+      `${conclusion}\n\n${consideration}`,
     );
   });
 
@@ -30,14 +30,14 @@ describe("interpretationDisplayText", () => {
   it("mantém considerações extras em parágrafo separado", () => {
     expect(
       interpretationDisplayText(`${consideration} ${extra}`, conclusion),
-    ).toBe(`${conclusion}\n\n${extra}`);
+    ).toBe(`${conclusion}\n\n${consideration}\n\n${extra}`);
   });
 
-  it("remove a frase duplicada de hipertensão sustentada no mesmo bloco", () => {
+  it("preserva diagnósticos adicionados e omite o lembrete de medicação", () => {
     const duplicated =
       "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Sustentada. Exame com valores compatíveis com Hipertensão Arterial Sustentada. Considerar o uso de medicamentos de efeito cardiovascular.";
     expect(interpretationDisplayText("Não informado.", duplicated)).toBe(
-      "Exame com valores compatíveis com Hipertensão Arterial Sustentada.",
+      "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Sustentada.\n\nExame com valores compatíveis com Hipertensão Arterial Sustentada.",
     );
   });
 
@@ -45,6 +45,17 @@ describe("interpretationDisplayText", () => {
     expect(interpretationDisplayText(cvMedsReminder, conclusion)).toBe(
       conclusion,
     );
+  });
+
+  it("remove o código de classificação quando a frase curta está inativa", () => {
+    const masked =
+      "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores do consultório sugerem Hipertensão Mascarada.";
+    expect(
+      interpretationDisplayText(masked, "MASKED_HYPERTENSION"),
+    ).toBe(masked);
+    expect(
+      interpretationDisplayText("", `MASKED_HYPERTENSION ${masked}`),
+    ).toBe(masked);
   });
 });
 

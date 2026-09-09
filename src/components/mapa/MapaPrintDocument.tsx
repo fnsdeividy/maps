@@ -280,11 +280,11 @@ function StatsTable({
         </tbody>
       </table>
       <p className="mt-1">
-        Sistólica &gt; {stats.systolicThreshold} mmHg{" "}
+        Sistólica &ge; {stats.systolicThreshold} mmHg{" "}
         {formatPercent(stats.systolicLoadPercent)}
       </p>
       <p>
-        Diastólica &gt; {stats.diastolicThreshold} mmHg{" "}
+        Diastólica &ge; {stats.diastolicThreshold} mmHg{" "}
         {formatPercent(stats.diastolicLoadPercent)}
       </p>
     </section>
@@ -387,7 +387,7 @@ export function MapaPrintDocument({
     ? withoutFlagChecklist(narrative.specialSituations)
     : "";
 
-  const officeBpLine = `PA de Consultório: BE sentado: ${
+  const officeBpLine = `PA de Consultório: BE, sentado: ${
     officeSystolic != null ? formatInteger(officeSystolic) : "—"
   }/${officeDiastolic != null ? formatInteger(officeDiastolic) : "—"} mmHg. FC: ${
     officeHeartRate != null ? formatInteger(officeHeartRate) : "—"
@@ -401,7 +401,7 @@ export function MapaPrintDocument({
   }> = [
     isFilled(narrative.technicalComments)
       ? {
-          title: "Qualidade técnica:",
+          title: "Considerações técnicas do exame:",
           text: narrative.technicalComments,
           topicKeys: ["technicalComments"],
         }
@@ -429,7 +429,7 @@ export function MapaPrintDocument({
       : null,
     isFilled(narrative.nightDipping)
       ? {
-          title: "Descenso pressórico noturno:",
+          title: "Descenso pressórico no sono:",
           text: narrative.nightDipping,
           topicKeys: ["nightDipping"],
         }
@@ -604,30 +604,30 @@ export function MapaPrintDocument({
                     {formatInteger(stats?.avg24hDiastolic)} mmHg
                   </td>
                   <td className="w-44 py-0.5 pl-4 text-slate-600">
-                    Limite normal: {thresholds.full24Hours.systolic}×
+                    Normal: &lt; {thresholds.full24Hours.systolic}× &lt;{" "}
                     {thresholds.full24Hours.diastolic} mmHg
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-0.5">Médias de BP dia</td>
+                  <td className="py-0.5">Médias de BP na vigília</td>
                   <td className="py-0.5 text-right font-medium">
                     {formatInteger(stats?.awakeAvgSystolic)} /{" "}
                     {formatInteger(stats?.awakeAvgDiastolic)} mmHg
                   </td>
                   <td className="py-0.5 pl-4 text-slate-600">
-                    Limite normal: {thresholds.awake.systolic}×{thresholds.awake.diastolic}{" "}
-                    mmHg
+                    Normal: &lt; {thresholds.awake.systolic}× &lt;{" "}
+                    {thresholds.awake.diastolic} mmHg
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-0.5">Médias de BP noite</td>
+                  <td className="py-0.5">Médias de BP no sono</td>
                   <td className="py-0.5 text-right font-medium">
                     {formatInteger(stats?.sleepAvgSystolic)} /{" "}
                     {formatInteger(stats?.sleepAvgDiastolic)} mmHg
                   </td>
                   <td className="py-0.5 pl-4 text-slate-600">
-                    Limite normal: {thresholds.sleep.systolic}×{thresholds.sleep.diastolic}{" "}
-                    mmHg
+                    Normal: &lt; {thresholds.sleep.systolic}× &lt;{" "}
+                    {thresholds.sleep.diastolic} mmHg
                   </td>
                 </tr>
               </tbody>
@@ -638,7 +638,7 @@ export function MapaPrintDocument({
             <p className="font-semibold">Cargas PA</p>
             <div className="mt-1 grid grid-cols-2 gap-4">
               <div>
-                <p className="underline">Dia</p>
+                <p className="underline">Vigília</p>
                 <p>
                   SIS: {formatPercent(stats?.awakeSystolicLoad)} (limite{" "}
                   {thresholds.awake.systolic} mmHg)
@@ -649,7 +649,7 @@ export function MapaPrintDocument({
                 </p>
               </div>
               <div>
-                <p className="underline">Noite</p>
+                <p className="underline">Sono</p>
                 <p>
                   SIS: {formatPercent(stats?.sleepSystolicLoad)} (limite{" "}
                   {thresholds.sleep.systolic} mmHg)
@@ -701,10 +701,10 @@ export function MapaPrintDocument({
             <div>
               <p className="font-semibold">Ritmo circadiano</p>
               <p>
-                Queda noturna SIS: {formatPercent(stats?.systolicNightDipping)}
+                Descenso SIS: {formatPercent(stats?.systolicNightDipping)}
               </p>
               <p>
-                Queda noturna DIA: {formatPercent(stats?.diastolicNightDipping)}
+                Descenso DIA: {formatPercent(stats?.diastolicNightDipping)}
               </p>
               <p className="text-slate-600">Normal: 10%–20%</p>
             </div>
@@ -725,12 +725,12 @@ export function MapaPrintDocument({
                     <td>{formatPercent(stats?.cvOverallDiastolic)}</td>
                   </tr>
                   <tr>
-                    <td className="py-0.5">Dia</td>
+                    <td className="py-0.5">Vigília</td>
                     <td>{formatPercent(stats?.cvAwakeSystolic)}</td>
                     <td>{formatPercent(stats?.cvAwakeDiastolic)}</td>
                   </tr>
                   <tr>
-                    <td className="py-0.5">Noite</td>
+                    <td className="py-0.5">Sono</td>
                     <td>{formatPercent(stats?.cvSleepSystolic)}</td>
                     <td>{formatPercent(stats?.cvSleepDiastolic)}</td>
                   </tr>

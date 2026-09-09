@@ -1,6 +1,7 @@
 import { mapaThresholds, type MapaThresholds, type PressurePair } from "../config/thresholds";
 import { clockToMinutes } from "../import/awp/decoders/dateTime";
 import type { MapaMeasurement } from "../import/awp/types";
+import { calculatePressureLoad } from "../rules/pressureLoad";
 
 export interface SleepWindowInput {
   /** "HH:MM" no fuso do equipamento. */
@@ -43,6 +44,7 @@ export interface MapaMetrics {
   minHeartRate: number | null;
   maxHeartRate: number | null;
 
+  overall: PeriodMetrics | null;
   awake: PeriodMetrics | null;
   sleep: PeriodMetrics | null;
 
@@ -53,7 +55,11 @@ export interface MapaMetrics {
   peakDiastolic: PeakMetric | null;
 
   /** Cortes usados nas cargas, para exibir a origem do número na interface. */
-  loadBasis: { awake: PressurePair; sleep: PressurePair } | null;
+  loadBasis: {
+    overall: PressurePair;
+    awake: PressurePair;
+    sleep: PressurePair;
+  } | null;
   sleepWindow: SleepWindowInput | null;
 }
 
@@ -66,12 +72,6 @@ function average(values: number[], digits = 1): number | null {
   if (values.length === 0) return null;
   const sum = values.reduce((total, value) => total + value, 0);
   return round(sum / values.length, digits);
-}
-
-function percentAbove(values: number[], threshold: number): number | null {
-  if (values.length === 0) return null;
-  const above = values.filter((value) => value >= threshold).length;
-  return round((above / values.length) * 100, 1);
 }
 
 /**
@@ -120,11 +120,16 @@ export class MapaMetricsCalculator {
     const usableWindow = this.resolveWindow(sleepWindow);
     const partition = usableWindow ? this.partition(valid, usableWindow) : null;
 
+    const overall = this.periodMetrics(
+      valid,
+      this.thresholds.full24Hours,
+      "overall",
+    );
     const awake = partition
-      ? this.periodMetrics(partition.awake, this.thresholds.awake)
+      ? this.periodMetrics(partition.awake, this.thresholds.awake, "awake")
       : null;
     const sleep = partition
-      ? this.periodMetrics(partition.sleep, this.thresholds.sleep)
+      ? this.periodMetrics(partition.sleep, this.thresholds.sleep, "sleep")
       : null;
 
     return {
@@ -151,6 +156,7 @@ export class MapaMetricsCalculator {
       minHeartRate: heartRates.length > 0 ? Math.min(...heartRates) : null,
       maxHeartRate: heartRates.length > 0 ? Math.max(...heartRates) : null,
 
+      overall,
       awake,
       sleep,
 
@@ -160,7 +166,11 @@ export class MapaMetricsCalculator {
       peakSystolic: this.peak(valid, (measurement) => measurement.systolic),
       peakDiastolic: this.peak(valid, (measurement) => measurement.diastolic),
 
-      loadBasis: { awake: this.thresholds.awake, sleep: this.thresholds.sleep },
+      loadBasis: {
+        overall: this.thresholds.full24Hours,
+        awake: this.thresholds.awake,
+        sleep: this.thresholds.sleep,
+      },
       sleepWindow: usableWindow,
     };
   }
@@ -187,6 +197,7 @@ export class MapaMetricsCalculator {
   private periodMetrics(
     measurements: MapaMeasurement[],
     threshold: PressurePair,
+    period: "overall" | "awake" | "sleep",
   ): PeriodMetrics | null {
     if (measurements.length === 0) return null;
     const systolics = measurements.map((measurement) => measurement.systolic);
@@ -196,8 +207,14 @@ export class MapaMetricsCalculator {
       count: measurements.length,
       avgSystolic: average(systolics) as number,
       avgDiastolic: average(diastolics) as number,
-      systolicLoad: percentAbove(systolics, threshold.systolic),
-      diastolicLoad: percentAbove(diastolics, threshold.diastolic),
+      systolicLoad: calculatePressureLoad(systolics, threshold.systolic, {
+        period,
+        type: "systolic",
+      }).percent,
+      diastolicLoad: calculatePressureLoad(diastolics, threshold.diastolic, {
+        period,
+        type: "diastolic",
+      }).percent,
     };
   }
 

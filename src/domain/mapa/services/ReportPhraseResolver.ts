@@ -1,3 +1,4 @@
+import { isEngineFallbackToken } from "../interpretation";
 import type { RuleResult } from "../types/clinical";
 
 export type PhraseRecord = {
@@ -31,12 +32,11 @@ export class ReportPhraseResolver {
       "MED_CUSTOM",
       "PEAK_NOTES",
       "MED_OFFICE_BP",
-      "MED_PREGNANCY",
     ]);
 
-    return results.map((result) => {
+    return results.flatMap((result) => {
       if (passthrough.has(result.code)) {
-        return { ...result, text: result.message };
+        return [{ ...result, text: result.message }];
       }
       const phrase = this.phrases.find(
         (item) => item.code === result.code && item.active,
@@ -47,7 +47,8 @@ export class ReportPhraseResolver {
       if (/\{[a-zA-Z]+\}/.test(text)) {
         text = result.message;
       }
-      return { ...result, text };
+      if (!phrase && isEngineFallbackToken(text)) return [];
+      return [{ ...result, text }];
     });
   }
 }

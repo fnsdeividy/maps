@@ -9,10 +9,20 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Visão geral do serviço interno de laudos.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Visão geral do serviço interno de laudos.
+          </p>
+        </div>
+        <Link
+          className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm text-teal-800"
+          href="/controle-laudos"
+        >
+          Controle de laudos
+        </Link>
+      </div>
       <div className="mt-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard label="Total de laudos" value={data.totalReports} />
         <StatCard label="Laudos no mês" value={data.monthReports} />

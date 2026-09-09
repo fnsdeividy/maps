@@ -183,18 +183,18 @@ export function SettingsForm({
 
       <OptionalSection
         defaultEnabled={thresholds.nightDippingThresholds != null}
-        description="Limites percentuais para classificar descenso noturno."
+        description="Limites percentuais para classificar o descenso pressórico no sono."
         enabledName="nightDippingEnabled"
-        title="Descenso pressórico noturno"
+        title="Descenso pressórico no sono"
       >
         <Field
-          defaultValue={thresholds.nightDippingThresholds?.absentMax ?? 10}
+          defaultValue={thresholds.nightDippingThresholds?.absentMax ?? 0}
           label="Ausente até (%)"
           name="nightDippingAbsentMax"
           type="number"
         />
         <Field
-          defaultValue={thresholds.nightDippingThresholds?.attenuatedMax ?? 20}
+          defaultValue={thresholds.nightDippingThresholds?.attenuatedMax ?? 10}
           label="Atenuado até (%)"
           name="nightDippingAttenuatedMax"
           type="number"

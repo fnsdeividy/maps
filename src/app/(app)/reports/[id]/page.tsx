@@ -8,6 +8,7 @@ import { REPORT_TOPICS, parseTopicFeedback } from "@/domain/mapa/reportTopics";
 import {
   EMPTY_REPORT_TEXT,
   interpretationDisplayText,
+  stripEngineFallbackTokens,
 } from "@/domain/mapa/interpretation";
 import { SECTION_CATEGORY } from "@/services/ai/AiPhraseSelectionService";
 import { getSigningDoctor } from "@/lib/signingDoctor";
@@ -89,7 +90,11 @@ export default async function ReportReviewPage({
     const engineOwned =
       topic.key === "averagePressure" ||
       topic.key === "pressureLoad" ||
-      topic.key === "nightDipping";
+      topic.key === "nightDipping" ||
+      topic.key === "medications" ||
+      topic.key === "technicalComments" ||
+      topic.key === "pressurePeaks" ||
+      topic.key === "specialSituations";
     const raw = engineOwned
       ? (numericDraft[topic.key] ?? stored)
       : stored;
@@ -98,7 +103,9 @@ export default async function ReportReviewPage({
         ? interpretationDisplayText(
             report.generatedGeneralConsiderations,
             raw,
-          ) || raw
+          ) ||
+          stripEngineFallbackTokens(raw) ||
+          EMPTY_REPORT_TEXT
         : raw;
     return {
       ...topic,
@@ -366,9 +373,9 @@ function ApproverPreLaudo({
     <>
       <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 text-sm">
         <p className="text-slate-600">
-          Revise o laudo abaixo. Você pode editar o texto, aplicar uma frase
-          pronta (ela substitui o tópico na hora) ou devolver com feedback para
-          o operador corrigir.
+          Revise o laudo abaixo. Cada frase fica em um bloco editável:
+          acrescente frases prontas ou remova somente os blocos que não quiser.
+          Você também pode devolver com feedback para o operador corrigir.
         </p>
       </div>
 

@@ -1,6 +1,7 @@
 import type { MapaThresholds } from "../config/thresholds";
 import { clockToMinutes } from "../import/awp/decoders/dateTime";
 import type { MapaMeasurement } from "../import/awp/types";
+import { calculatePressureLoad } from "../rules/pressureLoad";
 import {
   isWithinSleepWindow,
   type SleepWindowInput,
@@ -131,11 +132,6 @@ function mapOf(measurement: MapaMeasurement): number {
   return round((measurement.systolic + 2 * measurement.diastolic) / 3, 1);
 }
 
-function percentAbove(values: number[], threshold: number): number | null {
-  if (values.length === 0) return null;
-  return round((values.filter((value) => value >= threshold).length / values.length) * 100, 1);
-}
-
 function dipping(awake?: number | null, sleep?: number | null): number | null {
   if (awake == null || sleep == null || awake === 0) return null;
   return round(((awake - sleep) / awake) * 100, 1);
@@ -155,6 +151,7 @@ function buildPeriodStats(
   measurements: MapaMeasurement[],
   systolicThreshold: number,
   diastolicThreshold: number,
+  debugPeriod: "overall" | "awake" | "sleep",
 ): PeriodPrintStats {
   const systolic = seriesStats(
     measurements.map((measurement) => ({
@@ -200,14 +197,16 @@ function buildPeriodStats(
     heartRate,
     meanArterialPressure,
     pulsePressure,
-    systolicLoadPercent: percentAbove(
+    systolicLoadPercent: calculatePressureLoad(
       measurements.map((measurement) => measurement.systolic),
       systolicThreshold,
-    ),
-    diastolicLoadPercent: percentAbove(
+      { period: debugPeriod, type: "systolic" },
+    ).percent,
+    diastolicLoadPercent: calculatePressureLoad(
       measurements.map((measurement) => measurement.diastolic),
       diastolicThreshold,
-    ),
+      { period: debugPeriod, type: "diastolic" },
+    ).percent,
     systolicThreshold,
     diastolicThreshold,
   };
@@ -249,6 +248,7 @@ export function buildMapaPrintStatistics(
     valid,
     thresholds.full24Hours.systolic,
     thresholds.full24Hours.diastolic,
+    "overall",
   );
   const awake =
     usableWindow && awakeMeasurements.length > 0
@@ -257,6 +257,7 @@ export function buildMapaPrintStatistics(
           awakeMeasurements,
           thresholds.awake.systolic,
           thresholds.awake.diastolic,
+          "awake",
         )
       : null;
   const sleep =
@@ -266,6 +267,7 @@ export function buildMapaPrintStatistics(
           sleepMeasurements,
           thresholds.sleep.systolic,
           thresholds.sleep.diastolic,
+          "sleep",
         )
       : null;
 

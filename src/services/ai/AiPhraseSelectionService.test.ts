@@ -94,7 +94,7 @@ describe("buildCandidates", () => {
     expect(conclusionCodes).toEqual(["CONCLUSION_SUSTAINED"]);
   });
 
-  it("não oferece a frase consultório × MAPA junto com a conclusão", () => {
+  it("não oferece a frase curta quando já há a completa consultório × MAPA", () => {
     const resolvedWithBoth: Resolved[] = [
       {
         code: "OFFICE_VS_MAPA_SUSTAINED",
@@ -111,7 +111,7 @@ describe("buildCandidates", () => {
     ];
     const candidates = buildCandidates(resolvedWithBoth, []);
     const conclusionCodes = (candidates.CONCLUSION ?? []).map((c) => c.code);
-    expect(conclusionCodes).toEqual(["CONCLUSION_SUSTAINED"]);
+    expect(conclusionCodes).toEqual(["OFFICE_VS_MAPA_SUSTAINED"]);
   });
 
   it("não amplia conclusão pelo catálogo (só o que o motor resolveu)", () => {
@@ -168,7 +168,7 @@ describe("mergeSelection", () => {
     expect(result.conclusion).toBe("Hipertensão Sustentada.");
   });
 
-  it("não repete consultório × MAPA quando já há conclusão diagnóstica", () => {
+  it("preserva todas as frases explicitamente selecionadas", () => {
     const withOffice = {
       CONCLUSION: [
         {
@@ -199,7 +199,7 @@ describe("mergeSelection", () => {
       deterministic(),
     );
     expect(result.conclusion).toBe(
-      "Exame com valores compatíveis com Hipertensão Arterial Sustentada.",
+      "Os valores das médias pressóricas são compatíveis com Hipertensão Arterial Sustentada.\n\nExame com valores compatíveis com Hipertensão Arterial Sustentada.",
     );
   });
 

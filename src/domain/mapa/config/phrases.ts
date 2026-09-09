@@ -11,17 +11,22 @@ export const REPORT_PHRASES: Array<{
   },
   { code: "MED_CUSTOM", category: "MEDICATION", text: "{custom}" },
   {
-    code: "MED_PREGNANCY",
+    code: "MED_ANTIHYPERTENSIVE",
     category: "MEDICATION",
-    text: "Gestante de {months} meses.",
+    text: "Uso de anti-hipertensivos.",
+  },
+  {
+    code: "MED_CV_EFFECT",
+    category: "MEDICATION",
+    text: "Uso de medicações de efeito cardiovascular.",
   },
   {
     code: "MED_OFFICE_BP",
     category: "MEDICATION",
-    text: "PA de Consultório: BE sentado: {officeSystolic}/{officeDiastolic} mmHg. FC: {officeHeartRate}.",
+    text: "PA de Consultório: BE, sentado: {officeSystolic}/{officeDiastolic} mmHg. FC: {officeHeartRate}.",
   },
 
-  // Comentários sobre o desempenho técnico
+  // Considerações técnicas do exame
   {
     code: "TECH_SATISFACTORY",
     category: "TECHNICAL_QUALITY",
@@ -30,7 +35,7 @@ export const REPORT_PHRASES: Array<{
   {
     code: "TECH_COMPROMISED",
     category: "TECHNICAL_QUALITY",
-    text: "Procedimento de qualidade técnica comprometida devido ao número total de medições válidas ({validMeasurements}) estar abaixo do limite para validação do método.",
+    text: "Procedimento de qualidade técnica comprometida devido ao número total de medições ({validMeasurements}) válidas estar abaixo do limite para validação do método.",
   },
   {
     code: "TECH_BELOW_RECOMMENDED",
@@ -47,7 +52,7 @@ export const REPORT_PHRASES: Array<{
   {
     code: "AVG_24H_BOTH_NORMAL",
     category: "AVERAGE_PRESSURE",
-    text: "A média pressórica, sistólica e diastólica, total no MAPA 24 horas está normal: {systolic}/{diastolic} mmHg.",
+    text: "As médias pressóricas, sistólica e diastólica, total no MAPA 24 horas estão normais: {systolic}/{diastolic} mmHg.",
   },
   {
     code: "AVG_24H_BOTH_ELEVATED",
@@ -62,22 +67,22 @@ export const REPORT_PHRASES: Array<{
   {
     code: "AVG_24H_SYS_ELEVATED",
     category: "AVERAGE_PRESSURE",
-    text: "A média pressórica total no MAPA 24 horas, especificamente o componente sistólico, está elevada: {systolic}/{diastolic} mmHg.",
+    text: "A média pressórica total no MAPA 24 horas, especificamente o componente sistólico, está levemente elevada: {systolic}/{diastolic} mmHg.",
   },
   {
     code: "AVG_24H_SYS_SIGNIFICANTLY_ELEVATED",
     category: "AVERAGE_PRESSURE",
-    text: "A média pressórica total no MAPA 24 horas, especificamente o componente sistólico, está significativamente elevada: {systolic}/{diastolic} mmHg.",
+    text: "A média pressórica total no MAPA 24 horas, especificamente o componente sistólico, está elevada: {systolic}/{diastolic} mmHg.",
   },
   {
     code: "AVG_24H_DIA_ELEVATED",
     category: "AVERAGE_PRESSURE",
-    text: "A média pressórica total no MAPA 24 horas, especificamente o componente diastólico, está elevada: {systolic}/{diastolic} mmHg.",
+    text: "A média pressórica total no MAPA 24 horas, especificamente o componente diastólico, está levemente elevada: {systolic}/{diastolic} mmHg.",
   },
   {
     code: "AVG_24H_DIA_SIGNIFICANTLY_ELEVATED",
     category: "AVERAGE_PRESSURE",
-    text: "A média pressórica total no MAPA 24 horas, especificamente o componente diastólico, está significativamente elevada: {systolic}/{diastolic} mmHg.",
+    text: "A média pressórica total no MAPA 24 horas, especificamente o componente diastólico, está elevada: {systolic}/{diastolic} mmHg.",
   },
 
   // Médias — vigília
@@ -148,17 +153,17 @@ export const REPORT_PHRASES: Array<{
   {
     code: "LOAD_BOTH_PERIODS_NORMAL",
     category: "PRESSURE_LOAD",
-    text: "Cargas pressóricas na Vigília e no Sono normais.",
+    text: "Cargas pressóricas na Vigília e no Sono normais. ({awakeSys}% / {awakeDia}% na Vigília; {sleepSys}% / {sleepDia}% no Sono).",
   },
   {
     code: "LOAD_AWAKE_BOTH_NORMAL",
     category: "PRESSURE_LOAD",
-    text: "Cargas pressóricas sistólica e diastólica normais na Vigília.",
+    text: "Cargas pressóricas sistólica e diastólica normais na Vigília ({sys}% / {dia}%).",
   },
   {
     code: "LOAD_SLEEP_BOTH_NORMAL",
     category: "PRESSURE_LOAD",
-    text: "Cargas pressóricas sistólica e diastólica normais no Sono.",
+    text: "Cargas pressóricas sistólica e diastólica normais no Sono ({sys}% / {dia}%).",
   },
   {
     code: "LOAD_AWAKE_SYS_ELEVATED",
@@ -183,15 +188,40 @@ export const REPORT_PHRASES: Array<{
   {
     code: "LOAD_SYS_BOTH_NORMAL",
     category: "PRESSURE_LOAD",
-    text: "Cargas pressóricas sistólicas normais na Vigília e no Sono.",
+    text: "Cargas pressóricas sistólicas normais na Vigília e no Sono ({awake}% / {sleep}%).",
   },
   {
     code: "LOAD_DIA_BOTH_NORMAL",
     category: "PRESSURE_LOAD",
-    text: "Cargas pressóricas diastólicas normais na Vigília e no Sono.",
+    text: "Cargas pressóricas diastólicas normais na Vigília e no Sono ({awake}% / {sleep}%).",
   },
 
   // Picos pressóricos
+  {
+    code: "PEAK_AWAKE_SYS",
+    category: "PRESSURE_PEAK",
+    text: "Maior valor pressórico sistólico ({value}mmHg) na vigília ocorreu às {time}h.",
+  },
+  {
+    code: "PEAK_AWAKE_DIA",
+    category: "PRESSURE_PEAK",
+    text: "Maior valor pressórico diastólico ({value}mmHg) na vigília, ocorrido às {time}h.",
+  },
+  {
+    code: "PEAK_SLEEP_SYS",
+    category: "PRESSURE_PEAK",
+    text: "Maior valor pressórico sistólico ({value}mmHg) no sono ocorreu às {time}h.",
+  },
+  {
+    code: "PEAK_SLEEP_DIA",
+    category: "PRESSURE_PEAK",
+    text: "Maior valor pressórico diastólico ({value}mmHg) no sono ocorrido às {time}h.",
+  },
+  {
+    code: "PEAK_SYMPTOM",
+    category: "PRESSURE_PEAK",
+    text: "Sintoma associado: {symptom} (sic)",
+  },
   {
     code: "PEAK_AWAKE_AND_SLEEP",
     category: "PRESSURE_PEAK",
@@ -224,21 +254,21 @@ export const REPORT_PHRASES: Array<{
   },
   { code: "PEAK_NOTES", category: "PRESSURE_PEAK", text: "{notes}" },
 
-  // Descenso pressórico noturno
+  // Descenso pressórico no sono
   {
     code: "DIP_BOTH_NORMAL",
     category: "NIGHT_DIPPING",
-    text: "Descensos pressóricos sistólico e diastólico normais.",
+    text: "Descensos pressóricos sistólico e diastólico normais. ({systolicPercent}% / {diastolicPercent}%, respectivamente)",
   },
   {
     code: "DIP_SYS_ATTENUATED",
     category: "NIGHT_DIPPING",
-    text: "Descenso sistólico atenuado ({percent}%).",
+    text: "Descenso pressórico sistólico atenuado ({percent}%).",
   },
   {
     code: "DIP_DIA_ATTENUATED",
     category: "NIGHT_DIPPING",
-    text: "Descenso diastólico atenuado ({percent}%).",
+    text: "Descenso pressórico diastólico atenuado ({percent}%).",
   },
   {
     code: "DIP_BOTH_ACCENTUATED",
@@ -248,24 +278,39 @@ export const REPORT_PHRASES: Array<{
   {
     code: "DIP_ABSENT",
     category: "NIGHT_DIPPING",
-    text: "Ausência de descenso pressórico noturno.",
+    text: "Ausência de descenso pressórico no sono.",
   },
   {
     code: "DIP_SYS_ACCENTUATED",
     category: "NIGHT_DIPPING",
-    text: "Descenso sistólico acentuado ({percent}%).",
+    text: "Descenso pressórico sistólico acentuado ({percent}%).",
   },
   {
     code: "DIP_DIA_ACCENTUATED",
     category: "NIGHT_DIPPING",
-    text: "Descenso diastólico acentuado ({percent}%).",
+    text: "Descenso pressórico diastólico acentuado ({percent}%).",
   },
 
   // Situações especiais
   {
     code: "SPECIAL_PREGNANT",
     category: "SPECIAL_SITUATION",
-    text: "Considerar os valores mensurados em exame realizado em gestante.",
+    text: "Gestante.",
+  },
+  {
+    code: "SPECIAL_OBESITY",
+    category: "SPECIAL_SITUATION",
+    text: "Obesidade.",
+  },
+  {
+    code: "SPECIAL_DIABETES",
+    category: "SPECIAL_SITUATION",
+    text: "Diabetes.",
+  },
+  {
+    code: "SPECIAL_ALZHEIMER",
+    category: "SPECIAL_SITUATION",
+    text: "Alzheimer.",
   },
   {
     code: "SPECIAL_ALCOHOL",
@@ -347,7 +392,7 @@ export const REPORT_PHRASES: Array<{
   {
     code: "OFFICE_VS_MAPA_NORMOTENSION",
     category: "CONCLUSION",
-    text: "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Normotensão Verdadeira.",
+    text: "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Normotensão Arterial Verdadeira.",
   },
   {
     code: "OFFICE_VS_MAPA_SUSTAINED",
@@ -357,7 +402,7 @@ export const REPORT_PHRASES: Array<{
   {
     code: "OFFICE_VS_MAPA_CONTROLLED",
     category: "CONCLUSION",
-    text: "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório, em uso de medicação de efeito cardiovascular, são compatíveis com Hipertensão Arterial Controlada.",
+    text: "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Controlada.",
   },
   {
     code: "GENERAL_NAP_PHYSIOLOGIC",
@@ -367,7 +412,7 @@ export const REPORT_PHRASES: Array<{
   {
     code: "GENERAL_HR_PHYSIOLOGIC",
     category: "CONCLUSION",
-    text: "A variação das frequências cardíacas permaneceu dentro dos limites fisiológicos.",
+    text: "A variação da frequência cardíaca permaneceu dentro dos limites fisiológicos.",
   },
   {
     code: "GENERAL_CONSIDER_CV_MEDS",
@@ -392,9 +437,19 @@ export const REPORT_PHRASES: Array<{
     text: "Exame com valores compatíveis com Hipertensão Arterial Sustentada.",
   },
   {
+    code: "CONCLUSION_SUSTAINED_UNCONTROLLED",
+    category: "CONCLUSION",
+    text: "Exame com valores compatíveis com Hipertensão Arterial Sustentada Não Controlada.",
+  },
+  {
     code: "CONCLUSION_WHITE_COAT",
     category: "CONCLUSION",
     text: "Exame com valores compatíveis com Hipertensão do Avental Branco.",
+  },
+  {
+    code: "CONCLUSION_WHITE_COAT_UNCONTROLLED",
+    category: "CONCLUSION",
+    text: "Exame com valores compatíveis com Hipertensão do Avental Branco Não Controlada.",
   },
   {
     code: "CONCLUSION_MASKED",
@@ -402,9 +457,14 @@ export const REPORT_PHRASES: Array<{
     text: "Exame com valores compatíveis com Hipertensão Arterial Mascarada.",
   },
   {
+    code: "CONCLUSION_MASKED_UNCONTROLLED",
+    category: "CONCLUSION",
+    text: "Exame com valores compatíveis com Hipertensão Mascarada Não Controlada.",
+  },
+  {
     code: "CONCLUSION_CONTROLLED",
     category: "CONCLUSION",
-    text: "Exame com valores compatíveis com Hipertensão Arterial Controlada, em uso de medicação de efeito cardiovascular.",
+    text: "Exame com valores compatíveis com Hipertensão Arterial Controlada.",
   },
   {
     code: "CONCLUSION_NORMOTENSION_ALTERED_AWAKE_SYS",
@@ -429,17 +489,17 @@ export const REPORT_PHRASES: Array<{
   {
     code: "CONCLUSION_NORMOTENSION_ALTERED_DIPPING",
     category: "CONCLUSION",
-    text: "Valores compatíveis com Normotensão, porém resultado alterado devido ao descenso pressórico noturno anormal.",
+    text: "Valores compatíveis com Normotensão Arterial, porém, resultado alterado devido ao descenso pressórico no sono anormal.",
   },
   {
     code: "CONCLUSION_CONSIDER_STRESS_OR_MEDS",
     category: "CONCLUSION",
-    text: "Considerar, durante o exame, efeito de estresse físico/ emocional ou medicações com efeito cardiovascular.",
+    text: "Considerar, durante o exame, efeito de estresse físico/ emocional.",
   },
   {
     code: "CONCLUSION_CONSIDER_LOA",
     category: "CONCLUSION",
-    text: "Considerar o aumento de LOA relacionadas aos resultados apresentados.",
+    text: "Considerar o aumento de LOA relacionado aos resultados apresentados.",
   },
   {
     code: "CONCLUSION_MISSING_OFFICE",

@@ -20,7 +20,7 @@ const pendingDescriptions = [
   },
   {
     key: "nightDippingThresholds",
-    label: "Valores de descenso noturno: normal / atenuado / acentuado / ausente.",
+    label: "Valores de descenso pressórico no sono: normal / atenuado / acentuado / ausente.",
   },
   {
     key: "technicalQualityThresholds",

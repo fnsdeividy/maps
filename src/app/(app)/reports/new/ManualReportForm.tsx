@@ -2,15 +2,8 @@ import { Field } from "@/components/Field";
 import { PatientPicker } from "@/components/PatientPicker";
 import { MedicationFields } from "@/components/MedicationFields";
 import { SpecialSituationFlags } from "@/components/SpecialSituationFlags";
+import { ClinicalSituationCheckboxes } from "@/components/ClinicalSituationCheckboxes";
 import { createAndGenerateReport } from "../actions";
-
-const specialOptions = [
-  { value: "ORTHOSTATIC", label: "Redução pressórica ortostática" },
-  { value: "NAP", label: "Redução pressórica associada à sesta" },
-  { value: "POSTPRANDIAL", label: "Redução pressórica pós-prandial" },
-  { value: "BISOPROLOL", label: "Uso de Bisoprolol" },
-  { value: "OFFICE_HIGH_BP", label: "PA elevada no consultório" },
-];
 
 export function ManualReportForm({
   patients,
@@ -44,17 +37,7 @@ export function ManualReportForm({
 
       <SpecialSituationFlags />
 
-      <section>
-        <h2 className="font-semibold">Outras situações clínicas (opcional)</h2>
-        <div className="mt-3 space-y-2 text-sm">
-          {specialOptions.map((option) => (
-            <label className="flex gap-2" key={option.value}>
-              <input name="specialSituations" type="checkbox" value={option.value} />
-              {option.label}
-            </label>
-          ))}
-        </div>
-      </section>
+      <ClinicalSituationCheckboxes />
 
       <section>
         <h2 className="font-semibold">Medições (resumo)</h2>
