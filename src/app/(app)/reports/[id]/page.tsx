@@ -375,9 +375,9 @@ function ApproverPreLaudo({
     <>
       <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 text-sm">
         <p className="text-slate-600">
-          Revise o laudo abaixo. Você pode editar o texto, acrescentar uma
-          frase pronta (ela entra no final; apague o que não quiser) ou
-          devolver com feedback para o operador corrigir.
+          Revise o laudo abaixo. Cada frase fica em um bloco editável:
+          acrescente frases prontas ou remova somente os blocos que não quiser.
+          Você também pode devolver com feedback para o operador corrigir.
         </p>
       </div>
 

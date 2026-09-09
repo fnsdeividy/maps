@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { phrasesOf } from "@/domain/mapa/interpretation";
 import { TOPIC_FEEDBACK_PREFIX } from "@/domain/mapa/reportTopics";
 
-function appendPhrase(current: string, phrase: string): string {
-  const trimmed = current.trim();
-  const next = phrase.trim();
-  if (!next) return current;
-  if (!trimmed) return next;
-  if (trimmed.includes(next)) return trimmed;
-  return `${trimmed}\n\n${next}`;
+type EditablePhrase = {
+  id: string;
+  text: string;
+};
+
+function initialPhrases(value: string): EditablePhrase[] {
+  return phrasesOf(value).map((text, index) => ({
+    id: `initial-${index}`,
+    text,
+  }));
 }
 
 export function ApproverTopicEditor({
@@ -29,31 +33,92 @@ export function ApproverTopicEditor({
   editFormId: string;
   rejectFormId: string;
 }) {
-  const [text, setText] = useState(value);
+  const [items, setItems] = useState<EditablePhrase[]>(() =>
+    initialPhrases(value),
+  );
+  const nextId = useRef(0);
 
   useEffect(() => {
-    setText(value);
+    setItems(initialPhrases(value));
   }, [value]);
 
   function applyPhrase(code: string) {
     const phrase = phrases.find((item) => item.code === code);
     if (!phrase) return;
-    setText((current) => appendPhrase(current, phrase.text));
+    const text = phrase.text.trim();
+    if (!text) return;
+    setItems((current) => {
+      if (current.some((item) => item.text.trim() === text)) return current;
+      return [
+        ...current,
+        { id: `added-${nextId.current++}`, text },
+      ];
+    });
+  }
+
+  function updatePhrase(id: string, text: string) {
+    setItems((current) =>
+      current.map((item) => (item.id === id ? { ...item, text } : item)),
+    );
+  }
+
+  function removePhrase(id: string) {
+    setItems((current) => current.filter((item) => item.id !== id));
   }
 
   return (
     <div className="print:hidden mt-2 space-y-2">
-      <label className="block">
-        <span className="sr-only">Texto de {label}</span>
-        <textarea
-          className="w-full rounded-md border border-teal-300 bg-teal-50/80 px-2 py-1.5 text-[11px] leading-relaxed text-slate-900"
-          form={editFormId}
-          name={topicKey}
-          onChange={(event) => setText(event.target.value)}
-          rows={Math.min(12, Math.max(3, Math.ceil(text.length / 90)))}
-          value={text}
-        />
-      </label>
+      <input
+        form={editFormId}
+        name={topicKey}
+        type="hidden"
+        value={items
+          .map((item) => item.text.trim())
+          .filter(Boolean)
+          .join("\n\n")}
+      />
+      <div className="space-y-2">
+        {items.map((item, index) => (
+          <div
+            className="rounded-md border border-teal-300 bg-teal-50/80 p-2"
+            key={item.id}
+          >
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-teal-800">
+                Frase {index + 1}
+              </span>
+              <button
+                className="text-[10px] font-medium text-red-700 underline"
+                onClick={() => removePhrase(item.id)}
+                type="button"
+              >
+                Remover
+              </button>
+            </div>
+            <label className="block">
+              <span className="sr-only">
+                Frase {index + 1} de {label}
+              </span>
+              <textarea
+                className="w-full resize-y bg-transparent text-[11px] leading-relaxed text-slate-900 outline-none"
+                onChange={(event) =>
+                  updatePhrase(item.id, event.target.value)
+                }
+                rows={Math.min(
+                  8,
+                  Math.max(2, Math.ceil(item.text.length / 90)),
+                )}
+                value={item.text}
+              />
+            </label>
+          </div>
+        ))}
+        {items.length === 0 ? (
+          <p className="rounded-md border border-dashed border-teal-300 px-3 py-2 text-[11px] text-slate-500">
+            Nenhuma frase. Selecione uma frase pré-definida abaixo.
+          </p>
+        ) : null}
+      </div>
       {phrases.length > 0 ? (
         <select
           className="w-full rounded border border-teal-200 bg-white px-2 py-1 text-[11px]"
@@ -73,8 +138,8 @@ export function ApproverTopicEditor({
         </select>
       ) : null}
       <p className="text-[10px] text-slate-500">
-        Edite o texto, acrescente uma frase pronta ou deixe um feedback para
-        devolver. A frase aplicada entra no final; apague o que não quiser.
+        Cada frase fica em um bloco separado. Edite o texto, acrescente outra
+        frase pronta ou remova apenas o bloco que não quiser.
       </p>
       <div className="rounded-md border border-dashed border-rose-300 bg-rose-50/50 p-2">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-600">
