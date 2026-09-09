@@ -44,7 +44,13 @@ export function ApproverTopicEditor({
           className="w-full rounded border border-teal-200 bg-white px-2 py-1 text-[11px]"
           onChange={(event) => {
             const next = event.target.value;
-            if (next) setText(next);
+            if (!next) return;
+            setText((current) => {
+              const trimmed = current.trim();
+              if (!trimmed) return next;
+              if (trimmed.includes(next)) return current;
+              return `${trimmed}\n\n${next}`;
+            });
           }}
           value=""
         >
@@ -57,7 +63,8 @@ export function ApproverTopicEditor({
         </select>
       ) : null}
       <p className="text-[10px] text-slate-500">
-        Edite o texto, aplique uma frase pronta, ou deixe um feedback para devolver.
+        Edite o texto, acrescente uma frase pronta ou deixe um feedback para
+        devolver. A frase aplicada entra no final; apague o que não quiser.
       </p>
       <div className="rounded-md border border-dashed border-rose-300 bg-rose-50/50 p-2">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-600">
