@@ -16,6 +16,13 @@ describe("médias 24h", () => {
     expect(classifyAveragePressure(127, 70, t)).toBe("BOTH_NORMAL");
   });
 
+  it("130 ou 80 já é elevado no limite de 24h", () => {
+    expect(classifyAveragePressure(130, 79, t)).toBe("SYS_ELEVATED");
+    expect(classifyAveragePressure(129, 80, t)).toBe("DIA_ELEVATED");
+    expect(classifyAveragePressure(130, 80, t)).toBe("BOTH_ELEVATED");
+    expect(classifyAveragePressure(129, 79, t)).toBe("BOTH_NORMAL");
+  });
+
   it("135/70 => sistólica elevada", () => {
     expect(classifyAveragePressure(135, 70, t)).toBe("SYS_ELEVATED");
   });

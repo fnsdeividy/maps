@@ -593,7 +593,7 @@ export function MapaPrintDocument({
                     {formatInteger(stats?.avg24hDiastolic)} mmHg
                   </td>
                   <td className="w-44 py-0.5 pl-4 text-slate-600">
-                    Limite normal: {thresholds.full24Hours.systolic}×
+                    Normal: &lt; {thresholds.full24Hours.systolic}× &lt;{" "}
                     {thresholds.full24Hours.diastolic} mmHg
                   </td>
                 </tr>
@@ -604,8 +604,8 @@ export function MapaPrintDocument({
                     {formatInteger(stats?.awakeAvgDiastolic)} mmHg
                   </td>
                   <td className="py-0.5 pl-4 text-slate-600">
-                    Limite normal: {thresholds.awake.systolic}×{thresholds.awake.diastolic}{" "}
-                    mmHg
+                    Normal: &lt; {thresholds.awake.systolic}× &lt;{" "}
+                    {thresholds.awake.diastolic} mmHg
                   </td>
                 </tr>
                 <tr>
@@ -615,8 +615,8 @@ export function MapaPrintDocument({
                     {formatInteger(stats?.sleepAvgDiastolic)} mmHg
                   </td>
                   <td className="py-0.5 pl-4 text-slate-600">
-                    Limite normal: {thresholds.sleep.systolic}×{thresholds.sleep.diastolic}{" "}
-                    mmHg
+                    Normal: &lt; {thresholds.sleep.systolic}× &lt;{" "}
+                    {thresholds.sleep.diastolic} mmHg
                   </td>
                 </tr>
               </tbody>
