@@ -8,6 +8,7 @@ import { REPORT_TOPICS, parseTopicFeedback } from "@/domain/mapa/reportTopics";
 import {
   EMPTY_REPORT_TEXT,
   interpretationDisplayText,
+  stripEngineFallbackTokens,
 } from "@/domain/mapa/interpretation";
 import { SECTION_CATEGORY } from "@/services/ai/AiPhraseSelectionService";
 import { getSigningDoctor } from "@/lib/signingDoctor";
@@ -102,7 +103,9 @@ export default async function ReportReviewPage({
         ? interpretationDisplayText(
             report.generatedGeneralConsiderations,
             raw,
-          ) || raw
+          ) ||
+          stripEngineFallbackTokens(raw) ||
+          EMPTY_REPORT_TEXT
         : raw;
     return {
       ...topic,

@@ -30,16 +30,14 @@ export function ApproverTopicEditor({
   rejectFormId: string;
 }) {
   const [text, setText] = useState(value);
-  const [edited, setEdited] = useState(false);
 
   useEffect(() => {
-    if (!edited) setText(value);
-  }, [value, edited]);
+    setText(value);
+  }, [value]);
 
   function applyPhrase(code: string) {
     const phrase = phrases.find((item) => item.code === code);
     if (!phrase) return;
-    setEdited(true);
     setText((current) => appendPhrase(current, phrase.text));
   }
 
@@ -51,10 +49,7 @@ export function ApproverTopicEditor({
           className="w-full rounded-md border border-teal-300 bg-teal-50/80 px-2 py-1.5 text-[11px] leading-relaxed text-slate-900"
           form={editFormId}
           name={topicKey}
-          onChange={(event) => {
-            setEdited(true);
-            setText(event.target.value);
-          }}
+          onChange={(event) => setText(event.target.value)}
           rows={Math.min(12, Math.max(3, Math.ceil(text.length / 90)))}
           value={text}
         />

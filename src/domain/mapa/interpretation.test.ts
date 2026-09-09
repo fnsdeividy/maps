@@ -14,9 +14,9 @@ const cvMedsReminder =
   "Considerar o uso de medicamentos de efeito cardiovascular.";
 
 describe("interpretationDisplayText", () => {
-  it("não junta consideração e conclusão do mesmo diagnóstico", () => {
+  it("preserva as frases escolhidas para remoção manual", () => {
     expect(interpretationDisplayText(consideration, conclusion)).toBe(
-      consideration,
+      `${conclusion}\n\n${consideration}`,
     );
   });
 
@@ -30,14 +30,14 @@ describe("interpretationDisplayText", () => {
   it("mantém considerações extras em parágrafo separado", () => {
     expect(
       interpretationDisplayText(`${consideration} ${extra}`, conclusion),
-    ).toBe(`${consideration}\n\n${extra}`);
+    ).toBe(`${conclusion}\n\n${consideration}\n\n${extra}`);
   });
 
-  it("remove a frase duplicada de hipertensão sustentada no mesmo bloco", () => {
+  it("preserva diagnósticos adicionados e omite o lembrete de medicação", () => {
     const duplicated =
       "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Sustentada. Exame com valores compatíveis com Hipertensão Arterial Sustentada. Considerar o uso de medicamentos de efeito cardiovascular.";
     expect(interpretationDisplayText("Não informado.", duplicated)).toBe(
-      "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Sustentada.",
+      "Os valores das médias pressóricas do MAPA 24horas comparadas aos valores de consultório são compatíveis com Hipertensão Arterial Sustentada.\n\nExame com valores compatíveis com Hipertensão Arterial Sustentada.",
     );
   });
 

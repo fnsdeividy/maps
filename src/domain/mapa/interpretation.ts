@@ -11,10 +11,6 @@ function isOfficeVsMapaDiagnosis(text: string): boolean {
   return /valores das médias pressóricas/i.test(text);
 }
 
-function isExamConclusionPhrase(text: string): boolean {
-  return /^exame com valores compatíveis/i.test(text.trim());
-}
-
 /** Lembrete clínico: a medicação entra na classificação, não no texto do laudo. */
 export function isCvMedicationReminder(text: string): boolean {
   const normalized = text
@@ -24,19 +20,6 @@ export function isCvMedicationReminder(text: string): boolean {
   return /considerar o uso de medicamentos de efeito cardiovascular/.test(
     normalized,
   );
-}
-
-function diagnosisKey(text: string): string | null {
-  const normalized = text
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase();
-  if (/avental branco/.test(normalized)) return "white-coat";
-  if (/mascarada/.test(normalized)) return "masked";
-  if (/sustentada/.test(normalized)) return "sustained";
-  if (/controlada/.test(normalized)) return "controlled";
-  if (/normotensao/.test(normalized)) return "normotension";
-  return null;
 }
 
 /** Fallback do motor quando a frase está inativa (ex.: MASKED_HYPERTENSION). */
@@ -63,55 +46,20 @@ export function phrasesOf(text: string): string[] {
     .filter(Boolean);
 }
 
-function isSpecificDiagnosisPhrase(text: string): boolean {
-  const normalized = text
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase();
-  if (/nao controlada/.test(normalized)) return true;
-  return /porem/.test(normalized) && /alterado/.test(normalized);
-}
-
 /**
- * Remove o diagnóstico duplicado. Prefere a frase completa consultório × MAPA
- * à curta “Exame com valores…”, salvo a curta ser mais específica.
+ * Remove apenas conteúdo técnico que não pode aparecer no laudo. As frases
+ * clínicas escolhidas pelo médico são preservadas para edição individual.
  */
 export function composeInterpretationPhrases(phrases: string[]): string {
   const cleaned = phrases
     .map((phrase) => stripEngineFallbackTokens(phrase.trim()))
     .filter(Boolean);
-  const hasSpecific = cleaned.some(isSpecificDiagnosisPhrase);
-  const hasComplete = cleaned.some(isOfficeVsMapaDiagnosis);
-  const seenDiagnosis = new Set<string>();
-  const kept: string[] = [];
-
-  for (const phrase of cleaned) {
-    if (isEngineFallbackToken(phrase)) continue;
-    if (isCvMedicationReminder(phrase)) continue;
-    if (
-      hasSpecific &&
-      (isOfficeVsMapaDiagnosis(phrase) || isExamConclusionPhrase(phrase)) &&
-      !isSpecificDiagnosisPhrase(phrase)
-    ) {
-      continue;
-    }
-    if (
-      !hasSpecific &&
-      hasComplete &&
-      isExamConclusionPhrase(phrase) &&
-      !isSpecificDiagnosisPhrase(phrase)
-    ) {
-      continue;
-    }
-    const key = diagnosisKey(phrase);
-    if (key && (isOfficeVsMapaDiagnosis(phrase) || isExamConclusionPhrase(phrase))) {
-      if (seenDiagnosis.has(key)) continue;
-      seenDiagnosis.add(key);
-    }
-    kept.push(phrase);
-  }
-
-  return kept.join("\n\n");
+  return cleaned
+    .filter(
+      (phrase) =>
+        !isEngineFallbackToken(phrase) && !isCvMedicationReminder(phrase),
+    )
+    .join("\n\n");
 }
 
 /**

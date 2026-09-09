@@ -168,7 +168,7 @@ describe("mergeSelection", () => {
     expect(result.conclusion).toBe("Hipertensão Sustentada.");
   });
 
-  it("não repete consultório × MAPA quando já há conclusão diagnóstica", () => {
+  it("preserva todas as frases explicitamente selecionadas", () => {
     const withOffice = {
       CONCLUSION: [
         {
@@ -199,7 +199,7 @@ describe("mergeSelection", () => {
       deterministic(),
     );
     expect(result.conclusion).toBe(
-      "Os valores das médias pressóricas são compatíveis com Hipertensão Arterial Sustentada.",
+      "Os valores das médias pressóricas são compatíveis com Hipertensão Arterial Sustentada.\n\nExame com valores compatíveis com Hipertensão Arterial Sustentada.",
     );
   });
 
