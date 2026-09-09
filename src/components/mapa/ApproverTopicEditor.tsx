@@ -9,6 +9,8 @@ type EditablePhrase = {
   text: string;
 };
 
+const FREE_TEXT_OPTION = "__FREE_TEXT__";
+
 function initialPhrases(value: string): EditablePhrase[] {
   return phrasesOf(value).map((text, index) => ({
     id: `initial-${index}`,
@@ -43,6 +45,13 @@ export function ApproverTopicEditor({
   }, [value]);
 
   function applyPhrase(code: string) {
+    if (code === FREE_TEXT_OPTION) {
+      setItems((current) => [
+        ...current,
+        { id: `free-${nextId.current++}`, text: "" },
+      ]);
+      return;
+    }
     const phrase = phrases.find((item) => item.code === code);
     if (!phrase) return;
     const text = phrase.text.trim();
@@ -85,7 +94,9 @@ export function ApproverTopicEditor({
           >
             <div className="mb-1 flex items-center justify-between gap-2">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-teal-800">
-                Frase {index + 1}
+                {item.id.startsWith("free-")
+                  ? "Outros — texto livre"
+                  : `Frase ${index + 1}`}
               </span>
               <button
                 className="text-[10px] font-medium text-red-700 underline"
@@ -108,6 +119,11 @@ export function ApproverTopicEditor({
                   8,
                   Math.max(2, Math.ceil(item.text.length / 90)),
                 )}
+                placeholder={
+                  item.id.startsWith("free-")
+                    ? "Escreva livremente..."
+                    : undefined
+                }
                 value={item.text}
               />
             </label>
@@ -119,24 +135,23 @@ export function ApproverTopicEditor({
           </p>
         ) : null}
       </div>
-      {phrases.length > 0 ? (
-        <select
-          className="w-full rounded border border-teal-200 bg-white px-2 py-1 text-[11px]"
-          defaultValue=""
-          onChange={(event) => {
-            const code = event.target.value;
-            event.target.value = "";
-            if (code) applyPhrase(code);
-          }}
-        >
-          <option value="">Aplicar frase pré-definida…</option>
-          {phrases.map((phrase) => (
-            <option key={phrase.code} value={phrase.code}>
-              {phrase.text}
-            </option>
-          ))}
-        </select>
-      ) : null}
+      <select
+        className="w-full rounded border border-teal-200 bg-white px-2 py-1 text-[11px]"
+        defaultValue=""
+        onChange={(event) => {
+          const code = event.target.value;
+          event.target.value = "";
+          if (code) applyPhrase(code);
+        }}
+      >
+        <option value="">Aplicar frase pré-definida…</option>
+        {phrases.map((phrase) => (
+          <option key={phrase.code} value={phrase.code}>
+            {phrase.text}
+          </option>
+        ))}
+        <option value={FREE_TEXT_OPTION}>Outros — escrever texto livre…</option>
+      </select>
       <p className="text-[10px] text-slate-500">
         Cada frase fica em um bloco separado. Edite o texto, acrescente outra
         frase pronta ou remova apenas o bloco que não quiser.
