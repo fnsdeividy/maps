@@ -752,11 +752,6 @@ export class MapaRuleEngine {
       roundMmHg(data.awakeSystolic) >= this.thresholds.awake.systolic;
 
     const dippingAbnormal = this.hasAbnormalNightDipping(data);
-    const uncontrolled =
-      onCvMedication &&
-      (classification === "SUSTAINED_HYPERTENSION" ||
-        classification === "WHITE_COAT_HYPERTENSION" ||
-        classification === "MASKED_HYPERTENSION");
 
     // Uma frase só: específica (alterado / não controlada) ou a completa
     // consultório × MAPA. Nunca usar o código da classificação como texto.
@@ -776,7 +771,12 @@ export class MapaRuleEngine {
         message:
           "Valores compatíveis com Normotensão Arterial, porém, resultado alterado devido ao descenso pressórico no sono anormal.",
       });
-    } else if (uncontrolled) {
+    } else if (
+      onCvMedication &&
+      (classification === "SUSTAINED_HYPERTENSION" ||
+        classification === "WHITE_COAT_HYPERTENSION" ||
+        classification === "MASKED_HYPERTENSION")
+    ) {
       results.push({
         code: CONCLUSION_UNCONTROLLED_CODES[classification],
         category: "CONCLUSION",
