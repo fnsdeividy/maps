@@ -154,12 +154,17 @@ function withoutFlagChecklist(text: string): string {
     .trim();
 }
 
-/** Remove linha de PA de consultório do texto gerado — ela vai no campo dedicado. */
+/** Remove a PA pré-exame do texto gerado — ela vai no campo dedicado. */
 function medicationsWithoutOfficeBp(text: string): string {
   return text
     .split(/\n+/)
     .map((line) => line.trim())
-    .filter((line) => line && !/^PA de Consult[oó]rio/i.test(line))
+    .filter(
+      (line) =>
+        line &&
+        !/^PA de Consult[oó]rio/i.test(line) &&
+        !/^M[eé]dia da PA em repouso antes do exame/i.test(line),
+    )
     .join("\n");
 }
 
@@ -387,7 +392,7 @@ export function MapaPrintDocument({
     ? withoutFlagChecklist(narrative.specialSituations)
     : "";
 
-  const officeBpLine = `PA de Consultório: BE, sentado: ${
+  const officeBpLine = `Média da PA em repouso antes do exame: ${
     officeSystolic != null ? formatInteger(officeSystolic) : "—"
   }/${officeDiastolic != null ? formatInteger(officeDiastolic) : "—"} mmHg. FC: ${
     officeHeartRate != null ? formatInteger(officeHeartRate) : "—"

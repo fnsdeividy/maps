@@ -32,8 +32,9 @@ describe("laudo determinístico sem OpenAI", () => {
     const sections = new DeterministicReportBuilder().build(resolved);
 
     expect(sections.medications).toContain("Bisoprolol");
-    expect(sections.medications).toContain("PA de Consultório");
-    expect(sections.medications).toMatch(/BE, sentado:/);
+    expect(sections.medications).toContain(
+      "Média da PA em repouso antes do exame",
+    );
     expect(sections.medications).toMatch(/120\/80/);
     expect(sections.technicalComments).toContain("qualidade técnica satisfatória");
     expect(sections.technicalComments).toContain("76");

@@ -23,7 +23,7 @@ export const REPORT_PHRASES: Array<{
   {
     code: "MED_OFFICE_BP",
     category: "MEDICATION",
-    text: "PA de Consultório: BE, sentado: {officeSystolic}/{officeDiastolic} mmHg. FC: {officeHeartRate}.",
+    text: "Média da PA em repouso antes do exame: {officeSystolic}/{officeDiastolic} mmHg. FC: {officeHeartRate}.",
   },
 
   // Considerações técnicas do exame

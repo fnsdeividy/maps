@@ -126,7 +126,7 @@ export class MapaRuleEngine {
       code: "MED_OFFICE_BP",
       category: "MEDICATION",
       status: "OK",
-      message: `PA de Consultório: BE, sentado: ${officeSys}/${officeDia} mmHg. FC: ${hrLabel}.`,
+      message: `Média da PA em repouso antes do exame: ${officeSys}/${officeDia} mmHg. FC: ${hrLabel}.`,
       values: {
         officeSystolic: data.officeSystolicPressure ?? Number.NaN,
         officeDiastolic: data.officeDiastolicPressure ?? Number.NaN,
