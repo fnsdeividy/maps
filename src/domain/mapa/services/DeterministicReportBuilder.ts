@@ -1,5 +1,6 @@
 import { guidelineFooter } from "../config/guideline";
 import { interpretationDisplayText } from "../interpretation";
+import { normalizePressurePeakTerminology } from "../rules/pressurePeaks";
 import type { PhraseCategory, RuleResult } from "../types/clinical";
 import type { StructuredReportSections } from "../types/report";
 
@@ -34,7 +35,9 @@ export class DeterministicReportBuilder {
         joinCategory(resolved, "AVERAGE_PRESSURE") || "Não informado.",
       pressureLoad: joinCategory(resolved, "PRESSURE_LOAD") || "Não informado.",
       pressurePeaks:
-        joinCategory(resolved, "PRESSURE_PEAK") || "Não informado.",
+        normalizePressurePeakTerminology(
+          joinCategory(resolved, "PRESSURE_PEAK"),
+        ) || "Não informado.",
       nightDipping:
         joinCategory(resolved, "NIGHT_DIPPING") || "Não informado.",
       specialSituations:

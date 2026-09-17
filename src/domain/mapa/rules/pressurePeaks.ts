@@ -63,7 +63,7 @@ export function buildOfficialPeakNarrative(
     lines.push(...periodPeakLines(awake, "awake"));
   }
   if (sleep.length > 0) {
-    lines.push("Pico pressórico durante o Sono.");
+    lines.push("Maiores valores pressóricos registrados durante o Sono.");
     lines.push(...periodPeakLines(sleep, "sleep"));
   }
 
@@ -71,12 +71,33 @@ export function buildOfficialPeakNarrative(
 }
 
 const PEAK_FLAG_PHRASES = [
-  "Concomitante aumento da frequência cardíaca.",
-  "Relato de estresse físico-emocional neste momento.",
-  "Pico pressórico matutino, ao acordar.",
+  {
+    text: "Concomitante aumento da frequência cardíaca.",
+    aliases: ["Concomitante aumento da frequência cardíaca."],
+  },
+  {
+    text: "Relato de estresse físico-emocional neste momento.",
+    aliases: ["Relato de estresse físico-emocional neste momento."],
+  },
+  {
+    text: "Maior valor pressórico matutino, ao acordar.",
+    aliases: [
+      "Maior valor pressórico matutino, ao acordar.",
+      "Pico pressórico matutino, ao acordar.",
+    ],
+  },
 ] as const;
 
-/** Mantém só as frases de flag manual ao substituir o bloco pelos picos medidos. */
+/** Mantém só as frases de flag manual ao substituir o bloco pelos valores medidos. */
 export function peakFlagPhrasesFrom(text: string): string[] {
-  return PEAK_FLAG_PHRASES.filter((phrase) => text.includes(phrase));
+  return PEAK_FLAG_PHRASES.filter((phrase) =>
+    phrase.aliases.some((alias) => text.includes(alias)),
+  ).map((phrase) => phrase.text);
+}
+
+/** Atualiza a nomenclatura de textos antigos já armazenados no banco. */
+export function normalizePressurePeakTerminology(text: string): string {
+  return text
+    .replace(/Picos pressóricos/gi, "Maiores valores pressóricos registrados")
+    .replace(/Pico pressórico/gi, "Maior valor pressórico");
 }

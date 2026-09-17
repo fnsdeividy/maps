@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildOfficialPeakNarrative,
+  normalizePressurePeakTerminology,
   peakFlagPhrasesFrom,
 } from "./pressurePeaks";
 
@@ -9,7 +10,7 @@ function at(hour: number, minute: number) {
 }
 
 describe("buildOfficialPeakNarrative", () => {
-  it("monta picos de vigília e sono no formato do roteiro", () => {
+  it("monta maiores valores de vigília e sono no formato do roteiro", () => {
     const text = buildOfficialPeakNarrative(
       [
         {
@@ -43,7 +44,9 @@ describe("buildOfficialPeakNarrative", () => {
       "Maior valor pressórico diastólico (116mmHg) na vigília, ocorrido às 09:45h.",
     );
     expect(text).toContain("Sintoma associado: não relatado (sic)");
-    expect(text).toContain("Pico pressórico durante o Sono.");
+    expect(text).toContain(
+      "Maiores valores pressóricos registrados durante o Sono.",
+    );
     expect(text).toContain(
       "Maior valor pressórico sistólico (128mmHg) no sono ocorreu às 23:30h.",
     );
@@ -79,5 +82,17 @@ describe("peakFlagPhrasesFrom", () => {
         "Pico pressórico durante a Vigília. Concomitante aumento da frequência cardíaca.",
       ),
     ).toEqual(["Concomitante aumento da frequência cardíaca."]);
+  });
+});
+
+describe("normalizePressurePeakTerminology", () => {
+  it("atualiza a nomenclatura de textos antigos", () => {
+    expect(
+      normalizePressurePeakTerminology(
+        "Picos pressóricos durante a Vigília. Pico pressórico matutino.",
+      ),
+    ).toBe(
+      "Maiores valores pressóricos registrados durante a Vigília. Maior valor pressórico matutino.",
+    );
   });
 });

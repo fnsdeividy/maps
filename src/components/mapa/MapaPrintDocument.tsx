@@ -427,7 +427,7 @@ export function MapaPrintDocument({
       : null,
     isFilled(narrative.pressurePeaks)
       ? {
-          title: "Picos pressóricos:",
+          title: "Maiores valores pressóricos registrados:",
           text: narrative.pressurePeaks,
           topicKeys: ["pressurePeaks"],
         }

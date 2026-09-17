@@ -6,7 +6,10 @@ export const PHRASE_CATEGORIES: Array<{ value: PhraseCategory; label: string }> 
   { value: "TECHNICAL_QUALITY", label: "Considerações técnicas do exame" },
   { value: "AVERAGE_PRESSURE", label: "Médias pressóricas" },
   { value: "PRESSURE_LOAD", label: "Cargas pressóricas" },
-  { value: "PRESSURE_PEAK", label: "Picos pressóricos" },
+  {
+    value: "PRESSURE_PEAK",
+    label: "Maiores valores pressóricos registrados",
+  },
   { value: "NIGHT_DIPPING", label: "Descenso pressórico" },
   { value: "SPECIAL_SITUATION", label: "Situações especiais" },
   { value: "CONCLUSION", label: "Interpretação dos resultados" },

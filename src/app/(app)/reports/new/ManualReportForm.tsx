@@ -60,11 +60,13 @@ export function ManualReportForm({
       </section>
 
       <section>
-        <h2 className="font-semibold">Picos pressóricos (manual)</h2>
+        <h2 className="font-semibold">
+          Maiores valores pressóricos registrados (manual)
+        </h2>
         <div className="mt-3 space-y-2 text-sm">
           <label className="flex gap-2"><input name="peakAwake" type="checkbox" /> Durante a vigília</label>
           <label className="flex gap-2"><input name="peakSleep" type="checkbox" /> Durante o sono</label>
-          <label className="flex gap-2"><input name="peakMorning" type="checkbox" /> Pico matutino</label>
+          <label className="flex gap-2"><input name="peakMorning" type="checkbox" /> Maior valor matutino</label>
           <label className="flex gap-2"><input name="peakWithHeartRateIncrease" type="checkbox" /> Aumento concomitante da FC</label>
           <label className="flex gap-2"><input name="peakPhysicalEmotionalStress" type="checkbox" /> Estresse físico/emocional</label>
         </div>

@@ -24,7 +24,7 @@ export const REPORT_TOPICS = [
   },
   {
     key: "pressurePeaks",
-    label: "Picos pressóricos",
+    label: "Maiores valores pressóricos registrados",
     field: "generatedPressurePeaks",
   },
   {

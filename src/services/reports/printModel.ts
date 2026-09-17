@@ -12,6 +12,7 @@ import {
 } from "@/domain/mapa/interpretation";
 import {
   buildOfficialPeakNarrative,
+  normalizePressurePeakTerminology,
   peakFlagPhrasesFrom,
 } from "@/domain/mapa/rules/pressurePeaks";
 
@@ -230,11 +231,13 @@ export async function buildReportPrintModel(
         sleepWindow,
       )
     : "";
-  const pressurePeaks = measuredPeaks
-    ? [measuredPeaks, ...peakFlagPhrasesFrom(draft.pressurePeaks)].join("\n")
-    : live
-      ? draft.pressurePeaks
-      : report.generatedPressurePeaks;
+  const pressurePeaks = normalizePressurePeakTerminology(
+    measuredPeaks
+      ? [measuredPeaks, ...peakFlagPhrasesFrom(draft.pressurePeaks)].join("\n")
+      : live
+        ? draft.pressurePeaks
+        : report.generatedPressurePeaks ?? "",
+  );
 
   return {
     report,

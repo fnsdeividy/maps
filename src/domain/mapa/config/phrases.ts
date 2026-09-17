@@ -196,7 +196,7 @@ export const REPORT_PHRASES: Array<{
     text: "Cargas pressóricas diastólicas normais na Vigília e no Sono ({awake}% / {sleep}%).",
   },
 
-  // Picos pressóricos
+  // Maiores valores pressóricos registrados
   {
     code: "PEAK_AWAKE_SYS",
     category: "PRESSURE_PEAK",
@@ -225,17 +225,17 @@ export const REPORT_PHRASES: Array<{
   {
     code: "PEAK_AWAKE_AND_SLEEP",
     category: "PRESSURE_PEAK",
-    text: "Picos pressóricos durante a Vigília e o Sono.",
+    text: "Maiores valores pressóricos registrados durante a Vigília e o Sono.",
   },
   {
     code: "PEAK_AWAKE",
     category: "PRESSURE_PEAK",
-    text: "Pico pressórico durante a Vigília.",
+    text: "Maiores valores pressóricos registrados durante a Vigília.",
   },
   {
     code: "PEAK_SLEEP",
     category: "PRESSURE_PEAK",
-    text: "Pico pressórico durante o Sono.",
+    text: "Maiores valores pressóricos registrados durante o Sono.",
   },
   {
     code: "PEAK_HR",
@@ -250,7 +250,7 @@ export const REPORT_PHRASES: Array<{
   {
     code: "PEAK_MORNING",
     category: "PRESSURE_PEAK",
-    text: "Pico pressórico matutino, ao acordar.",
+    text: "Maior valor pressórico matutino, ao acordar.",
   },
   { code: "PEAK_NOTES", category: "PRESSURE_PEAK", text: "{notes}" },
 

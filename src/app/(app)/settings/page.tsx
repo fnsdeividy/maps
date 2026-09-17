@@ -28,7 +28,8 @@ const pendingDescriptions = [
   },
   {
     key: "pressurePeakThresholds",
-    label: "Critérios objetivos para picos pressóricos automáticos.",
+    label:
+      "Critérios objetivos para maiores valores pressóricos registrados.",
   },
 ] as const;
 

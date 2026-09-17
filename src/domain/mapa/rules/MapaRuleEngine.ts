@@ -452,21 +452,22 @@ export class MapaRuleEngine {
         code: "PEAK_AWAKE_AND_SLEEP",
         category: "PRESSURE_PEAK",
         status: "OK",
-        message: "Picos pressóricos durante a Vigília e o Sono.",
+        message:
+          "Maiores valores pressóricos registrados durante a Vigília e o Sono.",
       });
     } else if (data.peakAwake) {
       results.push({
         code: "PEAK_AWAKE",
         category: "PRESSURE_PEAK",
         status: "OK",
-        message: "Pico pressórico durante a Vigília.",
+        message: "Maiores valores pressóricos registrados durante a Vigília.",
       });
     } else if (data.peakSleep) {
       results.push({
         code: "PEAK_SLEEP",
         category: "PRESSURE_PEAK",
         status: "OK",
-        message: "Pico pressórico durante o Sono.",
+        message: "Maiores valores pressóricos registrados durante o Sono.",
       });
     }
 
@@ -491,7 +492,7 @@ export class MapaRuleEngine {
         code: "PEAK_MORNING",
         category: "PRESSURE_PEAK",
         status: "OK",
-        message: "Pico pressórico matutino, ao acordar.",
+        message: "Maior valor pressórico matutino, ao acordar.",
       });
     }
     if (data.peakPressureNotes?.trim()) {
