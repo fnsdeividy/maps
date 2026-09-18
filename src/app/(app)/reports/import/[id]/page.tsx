@@ -453,6 +453,13 @@ export default async function AwpImportPreviewPage({
         formId={confirmFormId}
         measurements={result.measurements}
         readOnly={reportLocked}
+        sleepWindow={
+          sleepWindow
+            ? { start: sleepWindow.start, end: sleepWindow.end }
+            : displayAsleep && displayAwake
+              ? { start: displayAsleep, end: displayAwake }
+              : null
+        }
         sourceFileId={sourceFile.id}
       />
 
