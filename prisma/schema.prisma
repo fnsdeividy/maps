@@ -74,6 +74,8 @@ model MapaReport {
   patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   examDate DateTime
+  /** Horário reservado na agenda (wall-clock armazenado em UTC). */
+  scheduledAt DateTime? @unique
   source   String   @default("MANUAL")
   /// DRAFT | GENERATED | PENDING_APPROVAL | CHANGES_REQUESTED | APPROVED
   status   String   @default("DRAFT")
