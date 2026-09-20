@@ -6,7 +6,6 @@ import { logoutAction } from "@/app/(auth)/login/actions";
 
 const links = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/agenda", label: "Agenda" },
   { href: "/patients", label: "Pacientes" },
   { href: "/reports", label: "Laudos" },
   { href: "/controle-laudos", label: "Controle de laudos" },
