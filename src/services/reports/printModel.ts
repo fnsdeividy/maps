@@ -10,6 +10,7 @@ import {
   isFilledReportText,
   stripEngineFallbackTokens,
 } from "@/domain/mapa/interpretation";
+import { parseEditedTopics, type ReportTopicKey } from "@/domain/mapa/reportTopics";
 import {
   buildOfficialPeakNarrative,
   normalizePressurePeakTerminology,
@@ -216,6 +217,10 @@ export async function buildReportPrintModel(
 
   const draft = await buildDeterministicDraft(report);
   const live = report.status !== "APPROVED";
+  // Texto editado à mão (operador ou médico) prevalece sobre o recalculado.
+  const editedTopics = parseEditedTopics(report.editedTopics);
+  const edited = (key: ReportTopicKey, stored: string | null) =>
+    editedTopics.has(key) && stored != null ? stored : null;
   const savedConclusion = isFilledReportText(report.generatedConclusion)
     ? stripEngineFallbackTokens(report.generatedConclusion)
     : "";
@@ -231,13 +236,15 @@ export async function buildReportPrintModel(
         sleepWindow,
       )
     : "";
-  const pressurePeaks = normalizePressurePeakTerminology(
-    measuredPeaks
-      ? [measuredPeaks, ...peakFlagPhrasesFrom(draft.pressurePeaks)].join("\n")
-      : live
-        ? draft.pressurePeaks
-        : report.generatedPressurePeaks ?? "",
-  );
+  const pressurePeaks =
+    edited("pressurePeaks", report.generatedPressurePeaks) ??
+    normalizePressurePeakTerminology(
+      measuredPeaks
+        ? [measuredPeaks, ...peakFlagPhrasesFrom(draft.pressurePeaks)].join("\n")
+        : live
+          ? draft.pressurePeaks
+          : report.generatedPressurePeaks ?? "",
+    );
 
   return {
     report,
@@ -252,17 +259,25 @@ export async function buildReportPrintModel(
     includeHistogramChart,
     includePieChart,
     narrative: {
-      medications: live ? draft.medications : report.generatedMedications,
-      technicalComments: live
-        ? draft.technicalComments
-        : report.generatedTechnicalComments,
-      averagePressure: draft.averagePressure,
-      pressureLoad: draft.pressureLoad,
+      medications:
+        edited("medications", report.generatedMedications) ??
+        (live ? draft.medications : report.generatedMedications),
+      technicalComments:
+        edited("technicalComments", report.generatedTechnicalComments) ??
+        (live ? draft.technicalComments : report.generatedTechnicalComments),
+      averagePressure:
+        edited("averagePressure", report.generatedResults) ??
+        draft.averagePressure,
+      pressureLoad:
+        edited("pressureLoad", report.generatedPressureLoad) ??
+        draft.pressureLoad,
       pressurePeaks,
-      nightDipping: draft.nightDipping,
-      specialSituations: live
-        ? draft.specialSituations
-        : report.generatedSpecialSituations,
+      nightDipping:
+        edited("nightDipping", report.generatedNightDipping) ??
+        draft.nightDipping,
+      specialSituations:
+        edited("specialSituations", report.generatedSpecialSituations) ??
+        (live ? draft.specialSituations : report.generatedSpecialSituations),
       generalConsiderations: report.generatedGeneralConsiderations,
       conclusion: live
         ? savedConclusion || draft.conclusion

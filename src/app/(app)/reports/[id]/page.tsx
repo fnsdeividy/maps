@@ -4,7 +4,12 @@ import { MapaPrintDocument } from "@/components/mapa/MapaPrintDocument";
 import { prisma } from "@/lib/prisma";
 import { isApprover, requireUser } from "@/lib/authz";
 import { formatDate } from "@/lib/dates";
-import { REPORT_TOPICS, parseTopicFeedback } from "@/domain/mapa/reportTopics";
+import {
+  REPORT_TOPICS,
+  TOPIC_ORIGINAL_PREFIX,
+  parseEditedTopics,
+  parseTopicFeedback,
+} from "@/domain/mapa/reportTopics";
 import {
   EMPTY_REPORT_TEXT,
   interpretationDisplayText,
@@ -84,17 +89,19 @@ export default async function ReportReviewPage({
     ? printModel.narrative
     : await buildDeterministicDraft(report);
 
+  const editedTopics = parseEditedTopics(report.editedTopics);
   const topics = REPORT_TOPICS.map((topic) => {
     const stored =
       (report[topic.field as keyof typeof report] as string | null) ?? "";
     const engineOwned =
-      topic.key === "averagePressure" ||
-      topic.key === "pressureLoad" ||
-      topic.key === "nightDipping" ||
-      topic.key === "medications" ||
-      topic.key === "technicalComments" ||
-      topic.key === "pressurePeaks" ||
-      topic.key === "specialSituations";
+      !editedTopics.has(topic.key) &&
+      (topic.key === "averagePressure" ||
+        topic.key === "pressureLoad" ||
+        topic.key === "nightDipping" ||
+        topic.key === "medications" ||
+        topic.key === "technicalComments" ||
+        topic.key === "pressurePeaks" ||
+        topic.key === "specialSituations");
     const raw = engineOwned
       ? (numericDraft[topic.key] ?? stored)
       : stored;
@@ -581,12 +588,19 @@ function OperatorForm({
               />
             );
           }
+          const shownValue =
+            topic.key === "conclusion" ? interpretationValue : topic.value;
           return (
             <label
               className="block rounded-lg border border-slate-200 bg-white p-5 text-sm"
               key={topic.key}
             >
               <span className="font-semibold">{topic.label}</span>
+              <input
+                name={`${TOPIC_ORIGINAL_PREFIX}${topic.key}`}
+                type="hidden"
+                value={shownValue}
+              />
               {changesRequested && topic.feedback ? (
                 <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
                   Pendência: {topic.feedback}
@@ -594,9 +608,7 @@ function OperatorForm({
               ) : null}
               <textarea
                 className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2"
-                defaultValue={
-                  topic.key === "conclusion" ? interpretationValue : topic.value
-                }
+                defaultValue={shownValue}
                 name={topic.key}
                 readOnly={!canEdit}
                 rows={4}

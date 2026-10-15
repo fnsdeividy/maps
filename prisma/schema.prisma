@@ -85,6 +85,8 @@ model MapaReport {
   reviewNotes String?
   /// Feedback por tópico na reprovação (JSON: { [sectionKey]: string }).
   reviewNotesByTopic String @default("{}")
+  /// Tópicos com texto editado à mão (JSON: sectionKey[]); prevalecem sobre o texto recalculado.
+  editedTopics String @default("[]")
   submittedAt DateTime?
 
   currentMedications String @default("")

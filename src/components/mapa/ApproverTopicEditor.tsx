@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TOPIC_FEEDBACK_PREFIX } from "@/domain/mapa/reportTopics";
+import {
+  TOPIC_FEEDBACK_PREFIX,
+  TOPIC_ORIGINAL_PREFIX,
+} from "@/domain/mapa/reportTopics";
 
 export function ApproverTopicEditor({
   topicKey,
@@ -28,6 +31,12 @@ export function ApproverTopicEditor({
 
   return (
     <div className="print:hidden mt-2 space-y-2">
+      <input
+        form={editFormId}
+        name={`${TOPIC_ORIGINAL_PREFIX}${topicKey}`}
+        type="hidden"
+        value={value}
+      />
       <label className="block">
         <span className="sr-only">Texto de {label}</span>
         <textarea

@@ -20,6 +20,7 @@ import { logReportEvent } from "@/services/audit/log";
 import { getClinicSettings } from "@/services/settings/clinicSettings";
 import { deserializeParseResult } from "@/services/imports/awpParseResultCodec";
 import { roundMmHg } from "@/domain/mapa/rules/averagePressure";
+import { parseEditedTopics, type ReportTopicKey } from "@/domain/mapa/reportTopics";
 import {
   buildOfficialPeakNarrative,
   peakFlagPhrasesFrom,
@@ -221,7 +222,7 @@ export async function buildDeterministicDraft(report: ClinicalReportInput) {
 
 export async function generateReportContent(
   reportId: string,
-  options: { keepStatus?: boolean } = {},
+  options: { keepStatus?: boolean; preserveEdits?: boolean } = {},
 ) {
   const report = await prisma.mapaReport.findUniqueOrThrow({
     where: { id: reportId },
@@ -335,10 +336,21 @@ export async function generateReportContent(
     }
   }
 
+  // Tópicos editados à mão não são sobrescritos quando pedimos para preservar
+  // (ex.: descarte de medição); a geração completa volta ao texto do motor.
+  const edited = options.preserveEdits
+    ? parseEditedTopics(report.editedTopics)
+    : new Set<ReportTopicKey>();
+  const generated: Partial<StructuredReportSections> = { ...sections };
+  for (const key of edited) delete generated[key];
+  // A interpretação editada já incorpora as considerações gerais.
+  if (edited.has("conclusion")) delete generated.generalConsiderations;
+
   return prisma.mapaReport.update({
     where: { id: reportId },
     data: {
-      ...sectionsToDb(sections),
+      ...sectionsToDb(generated),
+      ...(options.preserveEdits ? {} : { editedTopics: "[]" }),
       // Reprocesso (dev) mantém o status atual para não tirar o laudo da mesa
       // de aprovação; a geração normal marca como GENERATED.
       ...(options.keepStatus ? {} : { status: "GENERATED" }),
@@ -359,10 +371,26 @@ export async function saveEditedSections(
   if (Object.keys(data).length === 0) {
     return prisma.mapaReport.findUniqueOrThrow({ where: { id: reportId } });
   }
+  const current = await prisma.mapaReport.findUniqueOrThrow({
+    where: { id: reportId },
+    select: { editedTopics: true },
+  });
+  const edited = parseEditedTopics(current.editedTopics);
+  for (const key of Object.keys(sections)) {
+    if (key !== "generalConsiderations") edited.add(key as ReportTopicKey);
+  }
   await logReportEvent({ reportId, event: "REPORT_EDITED" });
   return prisma.mapaReport.update({
     where: { id: reportId },
-    data,
+    data: {
+      ...data,
+      // O editor da interpretação mostra conclusão + considerações juntas; o
+      // texto salvo passa a ser a interpretação inteira.
+      ...(sections.conclusion != null && sections.generalConsiderations == null
+        ? { generatedGeneralConsiderations: "" }
+        : {}),
+      editedTopics: JSON.stringify([...edited]),
+    },
   });
 }
 

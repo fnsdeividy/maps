@@ -72,3 +72,26 @@ export function parseTopicFeedback(
     return {};
   }
 }
+
+/** Prefixo do campo com o texto original de cada tópico, para detectar edição. */
+export const TOPIC_ORIGINAL_PREFIX = "original_";
+
+/** Lê o JSON de tópicos editados à mão salvo no laudo. */
+export function parseEditedTopics(
+  raw: string | null | undefined,
+): Set<ReportTopicKey> {
+  if (!raw) return new Set();
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return new Set();
+    const keys = new Set<string>(REPORT_TOPICS.map((topic) => topic.key));
+    return new Set(
+      parsed.filter(
+        (value): value is ReportTopicKey =>
+          typeof value === "string" && keys.has(value),
+      ),
+    );
+  } catch {
+    return new Set();
+  }
+}

@@ -5,7 +5,11 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireApprover, requireUser } from "@/lib/authz";
 import { readRequiredSpecialFlags } from "@/domain/mapa/specialFlags";
-import { REPORT_TOPICS, TOPIC_FEEDBACK_PREFIX } from "@/domain/mapa/reportTopics";
+import {
+  REPORT_TOPICS,
+  TOPIC_FEEDBACK_PREFIX,
+  TOPIC_ORIGINAL_PREFIX,
+} from "@/domain/mapa/reportTopics";
 import { reportSectionsSchema } from "@/lib/validation";
 import {
   approveReport,
@@ -178,11 +182,26 @@ async function requireEditPermission(reportId: string) {
   return user;
 }
 
+function normalizeText(text: string): string {
+  return text.replace(/\r\n?/g, "\n").trim();
+}
+
+/**
+ * Só os tópicos cujo texto mudou em relação ao exibido (`original_<key>`);
+ * os demais continuam acompanhando o texto recalculado pelo motor.
+ */
 function sectionsFromFormData(formData: FormData) {
   const payload: Record<string, string> = {};
   for (const topic of REPORT_TOPICS) {
     const value = formData.get(topic.key);
     if (typeof value !== "string") continue;
+    const original = formData.get(`${TOPIC_ORIGINAL_PREFIX}${topic.key}`);
+    if (
+      typeof original === "string" &&
+      normalizeText(original) === normalizeText(value)
+    ) {
+      continue;
+    }
     payload[topic.key] = value;
   }
   return reportSectionsSchema.partial().parse(payload);
@@ -375,7 +394,10 @@ export async function setReportMeasurementDiscardedAction(
     measurementIndex,
     discarded,
   });
-  await generateReportContent(reportId, { keepStatus: true });
+  await generateReportContent(reportId, {
+    keepStatus: true,
+    preserveEdits: true,
+  });
   await logReportEvent({
     reportId,
     event: discarded ? "MEASUREMENT_DISCARDED" : "MEASUREMENT_RESTORED",
